@@ -15,6 +15,7 @@ A responsive, explainable stock-strategy scanner published with GitHub Pages.
 - Market-context regimes with transparent strategy weights and evidence-quality scoring
 - Cost-aware next-session backtests with CAGR, Sharpe, Sortino, drawdown, exposure, profit factor, and SPY comparison
 - Permanent Research Library with plain-English paper summaries, direct sources, implementation notes, limitations, and a dated research log
+- Value + Momentum analysis using trailing P/E, forward P/E, PEG, earnings growth, and price confirmation with explicit missing-data and look-ahead protections
 - Saved light/dark theme with system preference support
 - Accessible desktop navigation, mobile tab bar, and complete Jump to menu
 - Installable PWA shell with offline demo support and update-safe caching
