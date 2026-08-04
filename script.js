@@ -3,6 +3,7 @@ const $$ = selector => [...document.querySelectorAll(selector)];
 
 let rows = [];
 let benchmarkRows = [];
+let fundamentals = null;
 let ticker = 'AAPL';
 let active = 'ensemble';
 let source = 'DEMO';
@@ -86,7 +87,7 @@ function matchedBenchmarkIndex(stockRow, benchmark, fallback) {
   return exact >= 0 ? exact : Math.min(fallback, benchmark.length - 1);
 }
 
-function analyze(stockData, marketData = stockData) {
+function analyze(stockData, marketData = stockData, fundamentalData = null) {
   const index = stockData.length - 1;
   const previousIndex = index - 1;
   const latest = stockData[index];
@@ -122,19 +123,34 @@ function analyze(stockData, marketData = stockData) {
   const breakoutDistance = (latest.close - resistance) / values.atr14;
   const breakoutScore = clamp(50 + clamp(breakoutDistance, -2, 2) * 15 + (volumeRatio - 1) * 18 + (closeLocation - 0.5) * 12);
   const riskScore = clamp(100 - Math.max(0, values.volatility20 - 15) * 1.7 - Math.abs(Math.min(values.drawdown252, 0)) * 1.15);
+  const validPE = value => Number.isFinite(value) && value > 0;
+  const valuationInputs = [fundamentalData?.trailingPE, fundamentalData?.forwardPE, fundamentalData?.pegRatio].filter(validPE);
+  const valuationAvailable = valuationInputs.length >= 2;
+  const peComponent = validPE(fundamentalData?.trailingPE) ? clamp(50 + (25 - fundamentalData.trailingPE) * 1.4, 15, 85) : 50;
+  const forwardComponent = validPE(fundamentalData?.forwardPE) ? clamp(50 + (22 - fundamentalData.forwardPE) * 1.6, 15, 85) : 50;
+  const pegComponent = validPE(fundamentalData?.pegRatio) ? clamp(72 - (fundamentalData.pegRatio - 1) * 28, 10, 90) : 50;
+  const growthPercent = Number.isFinite(fundamentalData?.earningsGrowth) ? fundamentalData.earningsGrowth * 100 : null;
+  const growthQuality = growthPercent == null ? 50 : clamp(45 + growthPercent * 1.1, 15, 85);
+  const forwardImprovement = validPE(fundamentalData?.trailingPE) && validPE(fundamentalData?.forwardPE) ? clamp(50 + (fundamentalData.trailingPE - fundamentalData.forwardPE) * 2, 20, 80) : 50;
+  const valuationScore = valuationAvailable ? average([peComponent, forwardComponent, pegComponent, growthQuality, forwardImprovement]) : 50;
 
   const weightSets = {
-    'BULL TREND': { trend: .30, relative: .25, mean: .10, breakout: .20, risk: .15 },
-    'BEAR TREND': { trend: .15, relative: .20, mean: .10, breakout: .20, risk: .35 },
-    'VOLATILE': { trend: .15, relative: .15, mean: .10, breakout: .25, risk: .35 },
-    'RANGE': { trend: .15, relative: .15, mean: .30, breakout: .15, risk: .25 }
+    'BULL TREND': { trend: .25, relative: .20, mean: .08, breakout: .17, risk: .15, valuation: .15 },
+    'BEAR TREND': { trend: .12, relative: .15, mean: .08, breakout: .15, risk: .30, valuation: .20 },
+    'VOLATILE': { trend: .12, relative: .12, mean: .08, breakout: .18, risk: .30, valuation: .20 },
+    'RANGE': { trend: .12, relative: .12, mean: .25, breakout: .12, risk: .19, valuation: .20 }
   };
-  const weights = weightSets[regime];
-  const subscores = { trend: trendScore, relative: relativeScore, mean: meanScore, breakout: breakoutScore, risk: riskScore };
+  const weights = { ...weightSets[regime] };
+  if (!valuationAvailable) {
+    weights.valuation = 0;
+    const remaining = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
+    Object.keys(weights).forEach(key => { weights[key] /= remaining; });
+  }
+  const subscores = { trend: trendScore, relative: relativeScore, mean: meanScore, breakout: breakoutScore, risk: riskScore, valuation: valuationScore };
   const ensembleScore = Object.entries(subscores).reduce((sum, [key, value]) => sum + value * weights[key], 0);
   const scoreValues = Object.values(subscores);
   const disagreement = deviation(scoreValues);
-  const dataQuality = clamp(58 + Math.min(stockData.length - 253, 252) / 252 * 22 - Math.max(0, disagreement - 15) * 0.8);
+  const dataQuality = clamp(58 + Math.min(stockData.length - 253, 252) / 252 * 22 - Math.max(0, disagreement - 15) * 0.8 - (valuationAvailable ? 0 : 8));
   const confidence = Math.round(clamp(45 + Math.abs(ensembleScore - 50) * 1.1 + dataQuality * .2 - disagreement * .35, 35, 92));
   const ensembleSignal = ensembleScore >= 68 ? 'BUY' : ensembleScore <= 32 ? 'SELL' : ensembleScore >= 58 || ensembleScore <= 42 ? 'WATCH' : 'HOLD';
 
@@ -148,11 +164,16 @@ function analyze(stockData, marketData = stockData) {
   const breakoutBuy = latest.close > resistance + .15 * values.atr14 && volumeRatio > 1.15 && closeLocation > .6;
   const breakoutSell = latest.close < support - .15 * values.atr14 && volumeRatio > 1.15 && closeLocation < .4;
   const atrSignal = breakoutBuy ? 'BUY' : breakoutSell ? 'SELL' : Math.min(Math.abs(latest.close - resistance), Math.abs(latest.close - support)) < values.atr14 ? 'WATCH' : 'HOLD';
+  const valuationSignal = !valuationAvailable ? 'WATCH' : valuationScore >= 65 && trendScore >= 55 ? 'BUY' : valuationScore <= 35 ? 'SELL' : valuationScore >= 58 || valuationScore <= 42 ? 'WATCH' : 'HOLD';
 
   const riskLevel = values.volatility20 > 35 || values.drawdown252 < -30 ? 'HIGH' : values.volatility20 > 24 || values.drawdown252 < -18 ? 'ELEVATED' : 'MODERATE';
   const invalidation = Math.max(support, values.s50 - values.atr14);
   const scoreLabel = ensembleScore >= 70 ? 'Strong bullish evidence' : ensembleScore >= 58 ? 'Moderately bullish' : ensembleScore <= 30 ? 'Strong bearish evidence' : ensembleScore <= 42 ? 'Moderately bearish' : 'Mixed or neutral evidence';
-  const qualityLabel = stockData.length >= 500 && disagreement < 22 ? 'Good history; reasonable agreement' : disagreement >= 22 ? 'Signals disagree; confidence reduced' : 'Limited history; interpret cautiously';
+  const qualityLabel = !valuationAvailable ? 'Fundamental ratios missing; valuation excluded' : stockData.length >= 500 && disagreement < 22 ? 'Good history; reasonable agreement' : disagreement >= 22 ? 'Signals disagree; confidence reduced' : 'Limited history; interpret cautiously';
+  const peText = validPE(fundamentalData?.trailingPE) ? fundamentalData.trailingPE.toFixed(1) : 'unavailable';
+  const forwardText = validPE(fundamentalData?.forwardPE) ? fundamentalData.forwardPE.toFixed(1) : 'unavailable';
+  const pegText = validPE(fundamentalData?.pegRatio) ? fundamentalData.pegRatio.toFixed(2) : 'unavailable';
+  const valuationExplanation = !valuationAvailable ? 'At least two valid positive ratios are required. Negative earnings and missing analyst estimates are not interpreted as cheap.' : 'Trailing P/E is ' + peText + ', forward P/E is ' + forwardText + ', and PEG is ' + pegText + '. These are combined with earnings growth and momentum; they are not universal valuation cutoffs.';
   const reasons = [
     `${trendScore >= 55 ? 'Trend supports' : 'Trend weakens'} the case (${trendScore.toFixed(0)}/100).`,
     `${relativeScore >= 55 ? 'The stock is outperforming' : 'The stock is not outperforming'} SPY over medium horizons.`,
@@ -160,13 +181,14 @@ function analyze(stockData, marketData = stockData) {
   ];
 
   const strategies = {
+    valuation: { id: 'valuation', name: 'Value + Momentum', subtitle: 'P/E + forward P/E + PEG + trend', signal: valuationSignal, confidence: valuationAvailable ? Math.round(clamp(48 + Math.abs(valuationScore - 50), 42, 88)) : 30, reason: valuationExplanation, metrics: [['Trailing P/E', fundamentalData?.trailingPE, 'ratio'], ['Forward P/E', fundamentalData?.forwardPE, 'ratio'], ['PEG ratio', fundamentalData?.pegRatio, 'ratio']] },
     ensemble: { id: 'ensemble', name: 'Quant Ensemble', subtitle: 'Regime-weighted multi-signal model', signal: ensembleSignal, confidence, reason: `${scoreLabel}. ${reasons.join(' ')}`, metrics: [['Ensemble score', ensembleScore, 'score'], ['SPY rel. 3M', relative63, 'percent'], ['Volatility 20D', values.volatility20, 'percent']] },
     trend: { id: 'trend', name: 'Trend Confirmation', subtitle: 'Multi-horizon trend + relative strength', signal: trendSignal, confidence: Math.round(clamp(45 + Math.abs(trendScore - 50), 40, 91)), reason: `Trend score is ${trendScore.toFixed(0)}/100. Price is ${latest.close > values.s200 ? 'above' : 'below'} the 200-day average, 6-month momentum is ${values.momentum126.toFixed(1)}%, and relative strength versus SPY is ${relative126.toFixed(1)}%.`, metrics: [['SMA 20', values.s20, 'money'], ['SMA 50', values.s50, 'money'], ['SMA 200', values.s200, 'money']] },
     mean: { id: 'mean', name: 'Bollinger + RSI Reversal', subtitle: 'Trend-filtered mean reversion', signal: meanSignal, confidence: severeDowntrend ? 42 : Math.round(clamp(50 + Math.abs(values.rsi14 - 50), 45, 88)), reason: severeDowntrend ? 'A bullish mean-reversion entry is blocked because the long-term trend is severely bearish.' : meanBuy ? 'Price re-entered the lower band after exhaustion while the long-term trend filter remained acceptable.' : meanSell ? 'Price re-entered the upper band after an overbought stretch.' : `RSI is ${values.rsi14.toFixed(1)} and no confirmed band re-entry occurred.`, metrics: [['RSI 14', values.rsi14, 'number'], ['Lower band', values.lower, 'money'], ['Upper band', values.upper, 'money']] },
     atr: { id: 'atr', name: 'ATR Breakout', subtitle: 'Volatility + volume + close confirmation', signal: atrSignal, confidence: Math.round(clamp(48 + Math.abs(breakoutScore - 50), 42, 90)), reason: breakoutBuy ? 'Price cleared prior resistance with an ATR buffer, strong volume, and a close near the session high.' : breakoutSell ? 'Price broke prior support with an ATR buffer, strong volume, and a close near the session low.' : `Confirmation requires a close above ${(resistance + .15 * values.atr14).toFixed(2)} or below ${(support - .15 * values.atr14).toFixed(2)}, plus volume and close-location confirmation.`, metrics: [['ATR 14', values.atr14, 'money'], ['Resistance', resistance, 'money'], ['Volume vs avg', volumeRatio, 'multiple']] }
   };
 
-  return { latest, ...values, marketValues, resistance, support, volumeRatio, regime, riskLevel, invalidation, ensembleScore, ensembleSignal, confidence, subscores, weights, dataQuality, qualityLabel, scoreLabel, strategies };
+  return { latest, ...values, marketValues, resistance, support, volumeRatio, regime, riskLevel, invalidation, ensembleScore, ensembleSignal, confidence, subscores, weights, dataQuality, qualityLabel, scoreLabel, valuationAvailable, valuationScore, valuationExplanation, fundamentals: fundamentalData, strategies };
 }
 
 function strategySignal(data, market, index, strategy) {
@@ -269,6 +291,45 @@ async function fetchMarket(symbol) {
   return data;
 }
 
+const rawValue = value => value && typeof value === 'object' && 'raw' in value ? value.raw : value;
+
+async function fetchFundamentals(symbol) {
+  const quoteUrl = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=' + encodeURIComponent(symbol);
+  try {
+    const response = await fetch(quoteUrl);
+    if (!response.ok) throw new Error('quote fundamentals unavailable');
+    const quote = (await response.json())?.quoteResponse?.result?.[0];
+    if (!quote) throw new Error('fundamentals not found');
+    return {
+      trailingPE: rawValue(quote.trailingPE),
+      forwardPE: rawValue(quote.forwardPE),
+      pegRatio: rawValue(quote.pegRatio),
+      earningsGrowth: rawValue(quote.earningsQuarterlyGrowth),
+      source: 'LIVE FUNDAMENTALS'
+    };
+  } catch {
+    const summaryUrl = 'https://query2.finance.yahoo.com/v10/finance/quoteSummary/' + encodeURIComponent(symbol) + '?modules=summaryDetail,defaultKeyStatistics,financialData';
+    const response = await fetch(summaryUrl);
+    if (!response.ok) throw new Error('fundamental ratios unavailable');
+    const result = (await response.json())?.quoteSummary?.result?.[0];
+    if (!result) throw new Error('fundamentals not found');
+    return {
+      trailingPE: rawValue(result.summaryDetail?.trailingPE),
+      forwardPE: rawValue(result.summaryDetail?.forwardPE),
+      pegRatio: rawValue(result.defaultKeyStatistics?.pegRatio),
+      earningsGrowth: rawValue(result.financialData?.earningsGrowth),
+      source: 'LIVE FUNDAMENTALS'
+    };
+  }
+}
+
+function demoFundamentals(symbol) {
+  const seed = [...symbol].reduce((sum, character) => sum + character.charCodeAt(0), 0);
+  const trailingPE = 14 + seed % 28;
+  const growth = .06 + (seed % 20) / 100;
+  return { trailingPE, forwardPE: trailingPE * (.78 + (seed % 12) / 100), pegRatio: trailingPE / (growth * 100), earningsGrowth: growth, source: 'SIMULATED FUNDAMENTALS' };
+}
+
 async function scan(symbol) {
   const clean = symbol.toUpperCase().trim().replace(/[^A-Z.\-]/g, '').slice(0, 10);
   if (!clean) return;
@@ -278,7 +339,7 @@ async function scan(symbol) {
   button.querySelector('span').textContent = 'Scanning';
   let message = '';
   try {
-    const [stockResult, spyResult] = await Promise.allSettled([fetchMarket(clean), fetchMarket('SPY')]);
+    const [stockResult, spyResult, fundamentalResult] = await Promise.allSettled([fetchMarket(clean), fetchMarket('SPY'), fetchFundamentals(clean)]);
     if (stockResult.status === 'rejected') throw stockResult.reason;
     rows = stockResult.value;
     if (spyResult.status === 'fulfilled') {
@@ -289,15 +350,18 @@ async function scan(symbol) {
       message = `Live ${clean} data loaded. SPY was unavailable, so relative-strength inputs are neutralized.`;
     }
     source = 'LIVE';
+    fundamentals = fundamentalResult.status === 'fulfilled' ? fundamentalResult.value : null;
+    if (!fundamentals) message += ' Fundamental ratios were unavailable and are excluded from the score.';
   } catch (error) {
     rows = demoRows(clean);
     benchmarkRows = demoRows('SPY');
     source = 'DEMO';
+    fundamentals = demoFundamentals(clean);
     message = `Live data unavailable (${error.message}). Showing clearly labeled simulated data—do not use it for trading decisions.`;
   }
   try {
     ticker = clean;
-    analysis = analyze(rows, benchmarkRows);
+    analysis = analyze(rows, benchmarkRows, fundamentals);
     setSource(message);
     render();
   } finally {
@@ -349,7 +413,18 @@ function render() {
   $('#invalidation').textContent = formatMoney(analysis.invalidation);
   $('#dataQuality').textContent = `${analysis.dataQuality.toFixed(0)}/100`;
   $('#qualityReason').textContent = analysis.qualityLabel;
-  const labels = { trend: 'Trend', relative: 'Relative strength', mean: 'Mean reversion', breakout: 'Breakout', risk: 'Risk quality' };
+  const fd = analysis.fundamentals;
+  $('#fundamentalSource').textContent = fd ? (fd.source || 'Fundamental data') : 'Unavailable · excluded from score';
+  $('#trailingPE').textContent = Number.isFinite(fd?.trailingPE) ? fd.trailingPE.toFixed(2) : '—';
+  $('#forwardPE').textContent = Number.isFinite(fd?.forwardPE) ? fd.forwardPE.toFixed(2) : '—';
+  $('#pegRatio').textContent = Number.isFinite(fd?.pegRatio) ? fd.pegRatio.toFixed(2) : '—';
+  $('#earningsGrowth').textContent = Number.isFinite(fd?.earningsGrowth) ? (fd.earningsGrowth * 100).toFixed(1) + '%' : '—';
+  $('#trailingPELabel').textContent = Number.isFinite(fd?.trailingPE) ? (fd.trailingPE < 20 ? 'Lower multiple' : fd.trailingPE > 35 ? 'Higher multiple' : 'Middle range') : 'Unavailable';
+  $('#forwardPELabel').textContent = Number.isFinite(fd?.forwardPE) ? (fd?.trailingPE > fd.forwardPE ? 'Below trailing P/E' : 'Above trailing P/E') : 'Unavailable';
+  $('#pegLabel').textContent = Number.isFinite(fd?.pegRatio) ? (fd.pegRatio < 1 ? 'Low vs expected growth' : fd.pegRatio > 2 ? 'High vs expected growth' : 'Middle range') : 'Unavailable';
+  $('#growthLabel').textContent = Number.isFinite(fd?.earningsGrowth) ? 'Consensus estimate' : 'Unavailable';
+  $('#valuationExplanation').textContent = analysis.valuationExplanation;
+  const labels = { trend: 'Trend', relative: 'Relative strength', mean: 'Mean reversion', breakout: 'Breakout', risk: 'Risk quality', valuation: 'Fundamental value' };
   $('#scoreBars').innerHTML = Object.entries(analysis.subscores).map(([key, value]) => `<div class="score-row"><span>${labels[key]} <small>${Math.round(analysis.weights[key] * 100)}% weight</small></span><div><i style="width:${value.toFixed(1)}%"></i></div><b>${value.toFixed(0)}</b></div>`).join('');
   renderPriceChart();
   renderBacktest();
@@ -357,11 +432,13 @@ function render() {
 }
 
 function formatMetric(value, type) {
+  if (!Number.isFinite(value)) return '—';
   if (type === 'money') return formatMoney(value);
   if (type === 'multiple') return `${value.toFixed(2)}×`;
   if (type === 'percent') return formatPercent(value);
   if (type === 'percent-plain') return `${Math.round(value)}%`;
   if (type === 'score') return `${value.toFixed(0)}/100`;
+  if (type === 'ratio') return value.toFixed(2);
   return value.toFixed(1);
 }
 
@@ -399,7 +476,7 @@ function renderBacktest() {
   $('#profitFactor').textContent = result.profitFactor === Infinity ? '∞' : formatNumber(result.profitFactor);
   $('#spyReturn').textContent = formatPercent(result.spyPct);
   $('#points').textContent = rows.length;
-  $('#sampleWarning').textContent = result.trades < 8 ? `Only ${result.trades} completed/open trades: this sample is too small for a reliable conclusion.` : 'Results include estimated 0.10% cost on every entry and exit.';
+  $('#sampleWarning').textContent = active === 'valuation' ? 'A historical valuation backtest is intentionally unavailable because this app does not have point-in-time P/E, forward P/E, PEG, and analyst forecasts. Using today’s ratios in the past would create look-ahead bias.' : active === 'ensemble' ? 'The historical ensemble excludes today’s valuation ratios because point-in-time fundamentals are unavailable. Results include estimated 0.10% cost per side.' : result.trades < 8 ? `Only ${result.trades} completed/open trades: this sample is too small for a reliable conclusion.` : 'Results include estimated 0.10% cost on every entry and exit.';
   const colors = chartColors();
   equityChart?.destroy();
   equityChart = new Chart($('#equityChart'), { type: 'line', data: { labels: result.curve.map(point => point.date), datasets: [{ label: 'Strategy net', data: result.curve.map(point => point.strategy), borderColor: colors.green, pointRadius: 0, borderWidth: 2.8 }, { label: 'Buy & hold', data: result.curve.map(point => point.hold), borderColor: '#67c7ff', backgroundColor: '#67c7ff', pointRadius: 0, borderWidth: 2.5, borderDash: [8, 5] }, { label: 'SPY', data: result.curve.map(point => point.spy), borderColor: colors.gold, backgroundColor: colors.gold, pointRadius: 0, borderWidth: 2.2 }] }, options: { ...commonChartOptions(), scales: { x: { ticks: { display: false }, grid: { display: false } }, y: { ticks: { color: '#c3ced8', callback: value => `${value.toFixed(2)}×` }, grid: { color: '#33465a' } } }, plugins: { legend: { labels: { color: '#e5edf3', boxWidth: 18, boxHeight: 3, padding: 18 } } } } });
