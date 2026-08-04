@@ -11,6 +11,9 @@ A responsive, explainable stock-strategy scanner published with GitHub Pages.
 - Interactive price and compounded equity charts
 - Backtests that calculate signals at the close and execute at the next session's open
 - Plain-English decision reasons and downloadable CSV decision logs
+- Five-part Quant Ensemble covering trend, SPY-relative strength, mean reversion, breakout quality, and risk
+- Market-context regimes with transparent strategy weights and evidence-quality scoring
+- Cost-aware next-session backtests with CAGR, Sharpe, Sortino, drawdown, exposure, profit factor, and SPY comparison
 - Saved light/dark theme with system preference support
 - Accessible desktop navigation, mobile tab bar, and complete Jump to menu
 - Installable PWA shell with offline demo support and update-safe caching
