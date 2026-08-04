@@ -1,0 +1,13 @@
+{
+  "name": "Stock Strategy Lab",
+  "short_name": "Stocks",
+  "description": "Regime-aware stock signals with explainable strategies and corrected backtests.",
+  "start_url": "./#scanner",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8f6ef",
+  "theme_color": "#0b1627",
+  "icons": [
+    {"src": "assets/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}
