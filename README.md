@@ -16,6 +16,7 @@ A responsive, explainable stock-strategy scanner published with GitHub Pages.
 - Cost-aware next-session backtests with CAGR, Sharpe, Sortino, drawdown, exposure, profit factor, and SPY comparison
 - Permanent Research Library with plain-English paper summaries, direct sources, implementation notes, limitations, and a dated research log
 - Value + Momentum analysis using trailing P/E, forward P/E, PEG, earnings growth, and price confirmation with explicit missing-data and look-ahead protections
+- Approval-based Investopedia Paper Trade Queue with an editable saved virtual balance, 1% risk sizing, 10% position caps, limit entries, stops, objectives, duplicate blocking, local journaling, copyable orders, and CSV export
 - Saved light/dark theme with system preference support
 - Accessible desktop navigation, mobile tab bar, and complete Jump to menu
 - Installable PWA shell with offline demo support and update-safe caching
