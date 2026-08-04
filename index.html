@@ -1,130 +1,1094 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Regime-aware stock signals with explainable strategies, honest backtests, and downloadable decision logs.">
-  <meta name="theme-color" content="#0b1627">
-  <title>Stock Strategy Lab</title>
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="assets/favicon.svg">
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="polish.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
-  <script src="script.js" defer></script>
-  <script src="enhancements.js" defer></script>
-</head>
-<body>
-  <a class="skip-link" href="#scanner">Skip to scanner</a>
-  <div id="offlineBanner" class="offline-banner" role="status" hidden>You’re offline. The app shell and demo scanner remain available.</div>
-  <nav aria-label="Primary navigation">
-    <a class="brand" href="#top" aria-label="Stock Strategy Lab home"><b aria-hidden="true">SL</b><span>Stock <em>Strategy</em> Lab</span></a>
-    <div class="nav-links"><a href="#scanner" data-section="scanner">Scanner</a><a href="#guide" data-section="guide">Strategies</a><a href="#backtest" data-section="backtest">Backtest</a><a href="#log" data-section="log">Decision log</a><a href="#research" data-section="research">Research</a></div>
-    <div class="nav-actions">
-      <button id="jumpButton" class="icon-button jump-button" aria-haspopup="dialog" aria-controls="jumpDialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Jump to</span></button>
-      <button id="themeToggle" class="icon-button" aria-label="Switch color theme" title="Switch color theme"><svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
-      <span id="dataBadge" class="data-badge demo" aria-live="polite"><i></i><span>DEMO DATA</span></span>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      name="description"
+      content="Regime-aware stock signals with explainable strategies, honest backtests, and downloadable decision logs."
+    />
+    <meta name="theme-color" content="#0b1627" />
+    <title>Stock Strategy Lab</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/favicon.svg" />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="polish.css" />
+    <script
+      src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+      defer
+    ></script>
+    <script src="script.js" defer></script>
+    <script src="enhancements.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#scanner">Skip to scanner</a>
+    <div id="offlineBanner" class="offline-banner" role="status" hidden>
+      You’re offline. The app shell and demo scanner remain available.
     </div>
-  </nav>
-
-  <header id="top">
-    <div>
-      <span class="eyebrow">REGIME-AWARE · EXPLAINABLE · REPRODUCIBLE</span>
-      <h1>Know <em>why</em><br>before you trade.</h1>
-      <p>Scan trend, mean-reversion, and volatility signals. Every decision includes the evidence, a plain-English explanation, and a corrected compounded backtest.</p>
-      <a class="primary" href="#scanner">Start a scan <span>→</span></a>
-    </div>
-    <aside class="hero-card">
-      <div><small>MARKET REGIME</small><b id="heroRegime">CALCULATING</b></div>
-      <div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-      <div class="hero-signal"><span>Combined signal for <b id="heroTicker">AAPL</b></span><strong id="heroSignal">HOLD</strong></div>
-      <p id="heroReason">Signals are weighted for the detected market environment.</p>
-    </aside>
-  </header>
-
-  <main>
-    <section id="scanner" class="scanner">
-      <div class="section-title">
-        <div><span>01 · MARKET SCANNER</span><h2>Inspect the evidence</h2><p>Search a US ticker for up to two years of daily price data.</p></div>
-        <form id="searchForm" novalidate><label for="tickerInput">Ticker symbol</label><div class="search-control"><input id="tickerInput" value="AAPL" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="tickerHelp tickerError"><button id="scanButton"><span>Run scan</span><i aria-hidden="true">→</i></button></div><small id="tickerHelp">Examples: AAPL, MSFT, NVDA</small><small id="tickerError" class="field-error" role="alert"></small></form>
+    <nav aria-label="Primary navigation">
+      <a class="brand" href="#top" aria-label="Stock Strategy Lab home"
+        ><b aria-hidden="true">SL</b><span>Stock <em>Strategy</em> Lab</span></a
+      >
+      <div class="nav-links">
+        <a href="#scanner" data-section="scanner">Scanner</a
+        ><a href="#guide" data-section="guide">Strategies</a
+        ><a href="#backtest" data-section="backtest">Backtest</a
+        ><a href="#log" data-section="log">Decision log</a
+        ><a href="#paperTrades" data-section="paperTrades">Paper trades</a
+        ><a href="#research" data-section="research">Research</a>
       </div>
-      <div id="notice" class="notice" role="status" aria-live="polite"></div>
-      <div class="terminal">
-        <aside class="strategy-nav">
-          <div class="quote"><span id="ticker">AAPL</span><strong id="price">—</strong><small id="asOf">Loading…</small></div>
-          <div class="regime-card"><small>DETECTED REGIME</small><b id="regime">—</b><p id="regimeText">Calculating current market structure.</p></div>
-          <label>STRATEGIES</label>
-          <button class="strategy-button active" data-strategy="ensemble" aria-pressed="true"><span><b>Quant Ensemble</b><small>Six independent evidence groups</small></span><em>—</em></button>
-          <button class="strategy-button" data-strategy="valuation" aria-pressed="false"><span><b>Value + Momentum</b><small>P/E · Forward P/E · PEG</small></span><em>—</em></button>
-          <button class="strategy-button" data-strategy="trend" aria-pressed="false"><span><b>Trend Confirmation</b><small>Multi-horizon trend + momentum</small></span><em>—</em></button>
-          <button class="strategy-button" data-strategy="mean" aria-pressed="false"><span><b>Bollinger + RSI Reversal</b><small>Range-market mean reversion</small></span><em>—</em></button>
-          <button class="strategy-button" data-strategy="atr" aria-pressed="false"><span><b>ATR Breakout</b><small>Volatility + volume confirmation</small></span><em>—</em></button>
-        </aside>
-        <article class="workspace">
-          <div class="workspace-head"><div><span id="strategySubtitle">20 / 50 / 200-DAY AVERAGES</span><h3 id="strategyName">Trend Confirmation</h3></div><div><small>CURRENT SIGNAL</small><b id="currentSignal">—</b></div></div>
-          <div class="chart-wrap"><canvas id="priceChart" role="img" aria-label="Price and indicator chart"></canvas></div>
-          <div class="reason"><i>✓</i><div><small>DECISION REASON</small><p id="reasonText">Calculating signal evidence…</p></div></div>
-          <div id="metrics" class="metrics"></div>
-          <div class="valuation-panel" aria-labelledby="valuationTitle"><div class="valuation-head"><div><small>FUNDAMENTAL VALUATION</small><h4 id="valuationTitle">Price relative to earnings and growth</h4></div><span id="fundamentalSource">Loading fundamentals…</span></div><div class="valuation-metrics"><div><span>TRAILING P/E</span><b id="trailingPE">—</b><small id="trailingPELabel">Unavailable</small></div><div><span>FORWARD P/E</span><b id="forwardPE">—</b><small id="forwardPELabel">Unavailable</small></div><div><span>PEG RATIO</span><b id="pegRatio">—</b><small id="pegLabel">Unavailable</small></div><div><span>EARNINGS GROWTH</span><b id="earningsGrowth">—</b><small id="growthLabel">Estimate</small></div></div><p id="valuationExplanation">Valuation data is loading. Missing values are never silently replaced in live analysis.</p></div>
-          <div class="research-grid"><div><small>ENSEMBLE SCORE</small><strong id="ensembleScore">—</strong><span id="scoreLabel">Waiting for evidence</span></div><div><small>RISK LEVEL</small><strong id="riskLevel">—</strong><span id="riskReason">Volatility and drawdown</span></div><div><small>INVALIDATION LEVEL</small><strong id="invalidation">—</strong><span>Evidence weakens below this level</span></div><div><small>DATA QUALITY</small><strong id="dataQuality">—</strong><span id="qualityReason">History and signal agreement</span></div></div>
-          <div class="score-breakdown" aria-labelledby="breakdownTitle"><div class="score-head"><h4 id="breakdownTitle">Evidence breakdown</h4><span>0–100, not a probability</span></div><div id="scoreBars"></div></div>
-        </article>
+      <div class="nav-actions">
+        <button
+          id="jumpButton"
+          class="icon-button jump-button"
+          aria-haspopup="dialog"
+          aria-controls="jumpDialog"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h10" /></svg
+          ><span>Jump to</span>
+        </button>
+        <button
+          id="themeToggle"
+          class="icon-button"
+          aria-label="Switch color theme"
+          title="Switch color theme"
+        >
+          <svg class="sun" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" />
+            <path
+              d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+            />
+          </svg>
+        </button>
+        <span id="dataBadge" class="data-badge demo" aria-live="polite"
+          ><i></i><span>DEMO DATA</span></span
+        >
       </div>
-    </section>
+    </nav>
 
-    <section id="guide" class="guide">
-      <div class="section-title pale"><div><span>02 · STRATEGY GUIDE</span><h2>One market, three lenses</h2><p>The scanner identifies context before interpreting any signal.</p></div></div>
-      <div class="guide-grid">
-        <article><span>01</span><h3>Quant Ensemble</h3><p>Combines trend, relative strength, mean reversion, breakout quality, risk, and fundamental valuation. Conflicting or missing evidence lowers confidence instead of forcing a trade.</p><button data-open="ensemble">Open strategy ↗</button></article>
-        <article><span>02</span><h3>Value + Momentum</h3><p>Combines trailing P/E, forward P/E, PEG, earnings growth, and price momentum. Missing or negative-earnings ratios reduce data quality rather than becoming automatic buy signals.</p><button data-open="valuation">Open strategy ↗</button></article>
-        <article><span>03</span><h3>Trend Confirmation</h3><p>Uses moving-average structure, slopes, and 3-, 6-, and 12-month momentum. SPY-relative performance prevents confusing a broad rally with stock-specific strength.</p><button data-open="trend">Open strategy ↗</button></article>
-        <article><span>04</span><h3>Bollinger + RSI Reversal</h3><p>Requires band re-entry and exhaustion, then blocks bullish reversals during severe long-term downtrends.</p><button data-open="mean">Open strategy ↗</button></article>
-        <article><span>05</span><h3>ATR Breakout</h3><p>Uses prior support or resistance, an ATR buffer, close location, and abnormal volume. Today's bar remains excluded from its threshold.</p><button data-open="atr">Open strategy ↗</button></article>
+    <header id="top">
+      <div>
+        <span class="eyebrow">REGIME-AWARE · EXPLAINABLE · REPRODUCIBLE</span>
+        <h1>Know <em>why</em><br />before you trade.</h1>
+        <p>
+          Scan trend, mean-reversion, and volatility signals. Every decision
+          includes the evidence, a plain-English explanation, and a corrected
+          compounded backtest.
+        </p>
+        <a class="primary" href="#scanner">Start a scan <span>→</span></a>
       </div>
-      <div class="process"><span><b>1</b>Classify regime<small>Trend · range · volatile</small></span><i>→</i><span><b>2</b>Calculate indicators<small>Past data only</small></span><i>→</i><span><b>3</b>Confirm signal<small>Price · trend · volume</small></span><i>→</i><span><b>4</b>Record reason<small>Decision stays auditable</small></span></div>
-    </section>
+      <aside class="hero-card">
+        <div>
+          <small>MARKET REGIME</small><b id="heroRegime">CALCULATING</b>
+        </div>
+        <div class="bars">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <div class="hero-signal">
+          <span>Combined signal for <b id="heroTicker">AAPL</b></span
+          ><strong id="heroSignal">HOLD</strong>
+        </div>
+        <p id="heroReason">
+          Signals are weighted for the detected market environment.
+        </p>
+      </aside>
+    </header>
 
-    <section id="backtest" class="backtest">
-      <div><span class="eyebrow">03 · COST-AWARE BACKTEST</span><h2>Strategy versus holding and SPY</h2><p>Signals are calculated at the close and executed at the <strong>next session's open</strong>. Returns compound after estimated trading costs. Open positions are marked to market.</p><div class="stats"><div><small>NET RETURN</small><b id="strategyReturn">—</b></div><div><small>BUY & HOLD</small><b id="holdReturn">—</b></div><div><small>CAGR</small><b id="cagr">—</b></div><div><small>SHARPE</small><b id="sharpe">—</b></div><div><small>SORTINO</small><b id="sortino">—</b></div><div><small>MAX DRAWDOWN</small><b id="drawdown">—</b></div><div><small>TRADES</small><b id="trades">—</b></div><div><small>WIN RATE</small><b id="winRate">—</b></div><div><small>EXPOSURE</small><b id="exposure">—</b></div><div><small>PROFIT FACTOR</small><b id="profitFactor">—</b></div><div><small>SPY RETURN</small><b id="spyReturn">—</b></div><div><small>DATA POINTS</small><b id="points">—</b></div></div><div id="sampleWarning" class="sample-warning" role="status"></div></div>
-      <div class="curve-card"><canvas id="equityChart" role="img" aria-label="Backtest equity curve comparing the selected strategy with buy and hold"></canvas><small>Educational illustration. Excludes fees, taxes, slippage, dividends, and survivorship bias. Past performance does not predict future results.</small></div>
-    </section>
+    <main>
+      <section id="scanner" class="scanner">
+        <div class="section-title">
+          <div>
+            <span>01 · MARKET SCANNER</span>
+            <h2>Inspect the evidence</h2>
+            <p>Search a US ticker for up to two years of daily price data.</p>
+          </div>
+          <form id="searchForm" novalidate>
+            <label for="tickerInput">Ticker symbol</label>
+            <div class="search-control">
+              <input
+                id="tickerInput"
+                value="AAPL"
+                maxlength="10"
+                autocomplete="off"
+                autocapitalize="characters"
+                spellcheck="false"
+                aria-describedby="tickerHelp tickerError"
+              /><button id="scanButton">
+                <span>Run scan</span><i aria-hidden="true">→</i>
+              </button>
+            </div>
+            <small id="tickerHelp">Examples: AAPL, MSFT, NVDA</small
+            ><small id="tickerError" class="field-error" role="alert"></small>
+          </form>
+        </div>
+        <div id="notice" class="notice" role="status" aria-live="polite"></div>
+        <div class="terminal">
+          <aside class="strategy-nav">
+            <div class="quote">
+              <span id="ticker">AAPL</span><strong id="price">—</strong
+              ><small id="asOf">Loading…</small>
+            </div>
+            <div class="regime-card">
+              <small>DETECTED REGIME</small><b id="regime">—</b>
+              <p id="regimeText">Calculating current market structure.</p>
+            </div>
+            <label>STRATEGIES</label>
+            <button
+              class="strategy-button active"
+              data-strategy="ensemble"
+              aria-pressed="true"
+            >
+              <span
+                ><b>Quant Ensemble</b
+                ><small>Six independent evidence groups</small></span
+              ><em>—</em>
+            </button>
+            <button
+              class="strategy-button"
+              data-strategy="valuation"
+              aria-pressed="false"
+            >
+              <span
+                ><b>Value + Momentum</b
+                ><small>P/E · Forward P/E · PEG</small></span
+              ><em>—</em>
+            </button>
+            <button
+              class="strategy-button"
+              data-strategy="trend"
+              aria-pressed="false"
+            >
+              <span
+                ><b>Trend Confirmation</b
+                ><small>Multi-horizon trend + momentum</small></span
+              ><em>—</em>
+            </button>
+            <button
+              class="strategy-button"
+              data-strategy="mean"
+              aria-pressed="false"
+            >
+              <span
+                ><b>Bollinger + RSI Reversal</b
+                ><small>Range-market mean reversion</small></span
+              ><em>—</em>
+            </button>
+            <button
+              class="strategy-button"
+              data-strategy="atr"
+              aria-pressed="false"
+            >
+              <span
+                ><b>ATR Breakout</b
+                ><small>Volatility + volume confirmation</small></span
+              ><em>—</em>
+            </button>
+          </aside>
+          <article class="workspace">
+            <div class="workspace-head">
+              <div>
+                <span id="strategySubtitle">20 / 50 / 200-DAY AVERAGES</span>
+                <h3 id="strategyName">Trend Confirmation</h3>
+              </div>
+              <div>
+                <small>CURRENT SIGNAL</small><b id="currentSignal">—</b>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <canvas
+                id="priceChart"
+                role="img"
+                aria-label="Price and indicator chart"
+              ></canvas>
+            </div>
+            <div class="reason">
+              <i>✓</i>
+              <div>
+                <small>DECISION REASON</small>
+                <p id="reasonText">Calculating signal evidence…</p>
+              </div>
+            </div>
+            <div id="metrics" class="metrics"></div>
+            <div class="valuation-panel" aria-labelledby="valuationTitle">
+              <div class="valuation-head">
+                <div>
+                  <small>FUNDAMENTAL VALUATION</small>
+                  <h4 id="valuationTitle">
+                    Price relative to earnings and growth
+                  </h4>
+                </div>
+                <span id="fundamentalSource">Loading fundamentals…</span>
+              </div>
+              <div class="valuation-metrics">
+                <div>
+                  <span>TRAILING P/E</span><b id="trailingPE">—</b
+                  ><small id="trailingPELabel">Unavailable</small>
+                </div>
+                <div>
+                  <span>FORWARD P/E</span><b id="forwardPE">—</b
+                  ><small id="forwardPELabel">Unavailable</small>
+                </div>
+                <div>
+                  <span>PEG RATIO</span><b id="pegRatio">—</b
+                  ><small id="pegLabel">Unavailable</small>
+                </div>
+                <div>
+                  <span>EARNINGS GROWTH</span><b id="earningsGrowth">—</b
+                  ><small id="growthLabel">Estimate</small>
+                </div>
+              </div>
+              <p id="valuationExplanation">
+                Valuation data is loading. Missing values are never silently
+                replaced in live analysis.
+              </p>
+            </div>
+            <div class="research-grid">
+              <div>
+                <small>ENSEMBLE SCORE</small
+                ><strong id="ensembleScore">—</strong
+                ><span id="scoreLabel">Waiting for evidence</span>
+              </div>
+              <div>
+                <small>RISK LEVEL</small><strong id="riskLevel">—</strong
+                ><span id="riskReason">Volatility and drawdown</span>
+              </div>
+              <div>
+                <small>INVALIDATION LEVEL</small
+                ><strong id="invalidation">—</strong
+                ><span>Evidence weakens below this level</span>
+              </div>
+              <div>
+                <small>DATA QUALITY</small><strong id="dataQuality">—</strong
+                ><span id="qualityReason">History and signal agreement</span>
+              </div>
+            </div>
+            <div class="score-breakdown" aria-labelledby="breakdownTitle">
+              <div class="score-head">
+                <h4 id="breakdownTitle">Evidence breakdown</h4>
+                <span>0–100, not a probability</span>
+              </div>
+              <div id="scoreBars"></div>
+            </div>
+          </article>
+        </div>
+      </section>
 
-    <section id="log" class="decision-log">
-      <div class="section-title pale"><div><span>04 · DECISION LOG</span><h2>Every decision, recorded</h2><p>Download the exact values and plain-English reasoning behind the current scan.</p></div><button id="downloadCsv">Download CSV ↓</button></div>
-      <div id="downloadStatus" class="action-status" role="status" aria-live="polite"></div>
-      <div class="table-wrap" tabindex="0" aria-label="Decision log table, horizontally scrollable on small screens"><table><caption class="sr-only">Current strategy decisions for the selected symbol</caption><thead><tr><th scope="col">DATE</th><th scope="col">SYMBOL</th><th scope="col">STRATEGY</th><th scope="col">REGIME</th><th scope="col">SIGNAL</th><th scope="col">DECISION REASON</th></tr></thead><tbody id="logBody"></tbody></table></div>
-    </section>
-    <section id="research" class="research-library" aria-labelledby="researchTitle">
-      <div class="section-title pale"><div><span>05 · RESEARCH LIBRARY</span><h2 id="researchTitle">Evidence behind the system</h2><p>A growing, plain-English record of the research used to design Stock Strategy Lab. Every source includes the idea, its limits, and how it influenced the app.</p></div><a class="research-skip" href="#researchLog">View research log ↓</a></div>
-      <div class="research-principles">
-        <article><span>CORE PRINCIPLE</span><h3>Estimate odds—not certainty</h3><p>Professional systematic investing combines weak evidence, controls exposure, and expects individual forecasts to be wrong. The ensemble score is evidence strength, not the probability that a stock will rise.</p></article>
-        <article><span>VALIDATION PRINCIPLE</span><h3>Protect against false discoveries</h3><p>Chronological testing, next-session execution, trading costs, adequate samples, and out-of-sample evaluation matter more than impressive historical returns.</p></article>
-        <article><span>RISK PRINCIPLE</span><h3>Survival comes first</h3><p>Volatility, drawdown, concentration, and market regime determine how much confidence a directional signal deserves.</p></article>
+      <section id="guide" class="guide">
+        <div class="section-title pale">
+          <div>
+            <span>02 · STRATEGY GUIDE</span>
+            <h2>One market, three lenses</h2>
+            <p>
+              The scanner identifies context before interpreting any signal.
+            </p>
+          </div>
+        </div>
+        <div class="guide-grid">
+          <article>
+            <span>01</span>
+            <h3>Quant Ensemble</h3>
+            <p>
+              Combines trend, relative strength, mean reversion, breakout
+              quality, risk, and fundamental valuation. Conflicting or missing
+              evidence lowers confidence instead of forcing a trade.
+            </p>
+            <button data-open="ensemble">Open strategy ↗</button>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>Value + Momentum</h3>
+            <p>
+              Combines trailing P/E, forward P/E, PEG, earnings growth, and
+              price momentum. Missing or negative-earnings ratios reduce data
+              quality rather than becoming automatic buy signals.
+            </p>
+            <button data-open="valuation">Open strategy ↗</button>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>Trend Confirmation</h3>
+            <p>
+              Uses moving-average structure, slopes, and 3-, 6-, and 12-month
+              momentum. SPY-relative performance prevents confusing a broad
+              rally with stock-specific strength.
+            </p>
+            <button data-open="trend">Open strategy ↗</button>
+          </article>
+          <article>
+            <span>04</span>
+            <h3>Bollinger + RSI Reversal</h3>
+            <p>
+              Requires band re-entry and exhaustion, then blocks bullish
+              reversals during severe long-term downtrends.
+            </p>
+            <button data-open="mean">Open strategy ↗</button>
+          </article>
+          <article>
+            <span>05</span>
+            <h3>ATR Breakout</h3>
+            <p>
+              Uses prior support or resistance, an ATR buffer, close location,
+              and abnormal volume. Today's bar remains excluded from its
+              threshold.
+            </p>
+            <button data-open="atr">Open strategy ↗</button>
+          </article>
+        </div>
+        <div class="process">
+          <span
+            ><b>1</b>Classify regime<small
+              >Trend · range · volatile</small
+            ></span
+          ><i>→</i
+          ><span><b>2</b>Calculate indicators<small>Past data only</small></span
+          ><i>→</i
+          ><span
+            ><b>3</b>Confirm signal<small>Price · trend · volume</small></span
+          ><i>→</i
+          ><span
+            ><b>4</b>Record reason<small>Decision stays auditable</small></span
+          >
+        </div>
+      </section>
+
+      <section id="backtest" class="backtest">
+        <div>
+          <span class="eyebrow">03 · COST-AWARE BACKTEST</span>
+          <h2>Strategy versus holding and SPY</h2>
+          <p>
+            Signals are calculated at the close and executed at the
+            <strong>next session's open</strong>. Returns compound after
+            estimated trading costs. Open positions are marked to market.
+          </p>
+          <div class="stats">
+            <div><small>NET RETURN</small><b id="strategyReturn">—</b></div>
+            <div><small>BUY & HOLD</small><b id="holdReturn">—</b></div>
+            <div><small>CAGR</small><b id="cagr">—</b></div>
+            <div><small>SHARPE</small><b id="sharpe">—</b></div>
+            <div><small>SORTINO</small><b id="sortino">—</b></div>
+            <div><small>MAX DRAWDOWN</small><b id="drawdown">—</b></div>
+            <div><small>TRADES</small><b id="trades">—</b></div>
+            <div><small>WIN RATE</small><b id="winRate">—</b></div>
+            <div><small>EXPOSURE</small><b id="exposure">—</b></div>
+            <div><small>PROFIT FACTOR</small><b id="profitFactor">—</b></div>
+            <div><small>SPY RETURN</small><b id="spyReturn">—</b></div>
+            <div><small>DATA POINTS</small><b id="points">—</b></div>
+          </div>
+          <div id="sampleWarning" class="sample-warning" role="status"></div>
+        </div>
+        <div class="curve-card">
+          <canvas
+            id="equityChart"
+            role="img"
+            aria-label="Backtest equity curve comparing the selected strategy with buy and hold"
+          ></canvas
+          ><small
+            >Educational illustration. Excludes fees, taxes, slippage,
+            dividends, and survivorship bias. Past performance does not predict
+            future results.</small
+          >
+        </div>
+      </section>
+
+      <section id="log" class="decision-log">
+        <div class="section-title pale">
+          <div>
+            <span>04 · DECISION LOG</span>
+            <h2>Every decision, recorded</h2>
+            <p>
+              Download the exact values and plain-English reasoning behind the
+              current scan.
+            </p>
+          </div>
+          <button id="downloadCsv">Download CSV ↓</button>
+        </div>
+        <div
+          id="downloadStatus"
+          class="action-status"
+          role="status"
+          aria-live="polite"
+        ></div>
+        <div
+          class="table-wrap"
+          tabindex="0"
+          aria-label="Decision log table, horizontally scrollable on small screens"
+        >
+          <table>
+            <caption class="sr-only">
+              Current strategy decisions for the selected symbol
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">DATE</th>
+                <th scope="col">SYMBOL</th>
+                <th scope="col">STRATEGY</th>
+                <th scope="col">REGIME</th>
+                <th scope="col">SIGNAL</th>
+                <th scope="col">DECISION REASON</th>
+              </tr>
+            </thead>
+            <tbody id="logBody"></tbody>
+          </table>
+        </div>
+      </section>
+      <section
+        id="paperTrades"
+        class="paper-trades"
+        aria-labelledby="paperTradesTitle"
+      >
+        <div class="section-title pale">
+          <div>
+            <span>05 · INVESTOPEDIA PAPER TRADES</span>
+            <h2 id="paperTradesTitle">Review before you trade</h2>
+            <p>
+              The app prepares a disciplined virtual order. Nothing is sent to
+              Investopedia automatically—you approve it, copy it, and place it
+              in your Simulator account.
+            </p>
+          </div>
+          <span class="manual-badge">MANUAL APPROVAL REQUIRED</span>
+        </div>
+        <div class="paper-rules">
+          <div>
+            <label for="virtualBalanceInput">VIRTUAL ACCOUNT</label>
+            <input
+              id="virtualBalanceInput"
+              type="number"
+              min="100"
+              step="0.01"
+              value="148264.79"
+              inputmode="decimal"
+            />
+          </div>
+          <div>
+            <small>MAX RISK / TRADE · 1%</small><b id="maxRiskDisplay">$1,482.65</b>
+          </div>
+          <div>
+            <small>MAX POSITION · 10%</small><b id="maxPositionDisplay">$14,826.48</b>
+          </div>
+          <div><small>DIRECTION</small><b>Long only</b></div>
+        </div>
+        <div class="ticket-layout">
+          <article class="trade-ticket">
+            <div class="ticket-head">
+              <div>
+                <span>PROPOSED ORDER</span>
+                <h3 id="ticketSymbol">Scan a ticker</h3>
+              </div>
+              <em id="ticketAction" class="hold">WAIT</em>
+            </div>
+            <div id="ticketGate" class="ticket-gate">
+              A BUY ticket requires a confirmed ensemble BUY, live valuation
+              inputs, and acceptable risk.
+            </div>
+            <dl>
+              <div>
+                <dt>Order type</dt>
+                <dd id="ticketOrderType">—</dd>
+              </div>
+              <div>
+                <dt>Entry limit</dt>
+                <dd id="ticketEntry">—</dd>
+              </div>
+              <div>
+                <dt>Shares</dt>
+                <dd id="ticketShares">—</dd>
+              </div>
+              <div>
+                <dt>Position value</dt>
+                <dd id="ticketValue">—</dd>
+              </div>
+              <div>
+                <dt>Protective stop</dt>
+                <dd id="ticketStop">—</dd>
+              </div>
+              <div>
+                <dt>Profit objective</dt>
+                <dd id="ticketTarget">—</dd>
+              </div>
+              <div>
+                <dt>Dollars at risk</dt>
+                <dd id="ticketRisk">—</dd>
+              </div>
+              <div>
+                <dt>Timing</dt>
+                <dd id="ticketTiming">Wait for a scan</dd>
+              </div>
+            </dl>
+            <p id="ticketReason">
+              Scan a ticker to evaluate a possible paper trade.
+            </p>
+            <div class="ticket-actions">
+              <button id="queueTradeButton" disabled>
+                Approve &amp; add to queue</button
+              ><button id="copyTradeButton" class="secondary-button" disabled>
+                Copy order
+              </button>
+            </div>
+            <div id="ticketStatus" role="status" aria-live="polite"></div>
+          </article>
+          <aside class="investopedia-steps">
+            <span>HOW TO PLACE IT</span>
+            <h3>Investopedia Simulator</h3>
+            <ol>
+              <li>Open your Simulator portfolio and choose <b>Trade</b>.</li>
+              <li>Search the ticker shown in the approved ticket.</li>
+              <li>Select <b>Buy</b> and use the listed number of shares.</li>
+              <li>
+                Choose a <b>limit order</b> and enter the listed entry limit.
+              </li>
+              <li>
+                After it fills, add the listed protective stop if the game
+                permits it.
+              </li>
+              <li>Return here and mark the queued ticket as placed.</li>
+            </ol>
+            <p>
+              Investopedia quotes may be delayed. If its displayed price is
+              already above the entry limit, do not chase it—wait or rescan.
+            </p>
+            <a
+              href="https://www.investopedia.com/simulator/"
+              target="_blank"
+              rel="noopener"
+              >Open Investopedia Simulator ↗</a
+            >
+          </aside>
+        </div>
+        <div class="queue-head">
+          <div>
+            <span>REVIEW QUEUE</span>
+            <h3>Paper-trade journal</h3>
+          </div>
+          <button id="exportTradesButton">Export journal CSV</button>
+        </div>
+        <div id="tradeQueue" class="trade-queue">
+          <p class="empty-queue">No proposed paper trades yet.</p>
+        </div>
+      </section>
+      <section
+        id="research"
+        class="research-library"
+        aria-labelledby="researchTitle"
+      >
+        <div class="section-title pale">
+          <div>
+            <span>06 · RESEARCH LIBRARY</span>
+            <h2 id="researchTitle">Evidence behind the system</h2>
+            <p>
+              A growing, plain-English record of the research used to design
+              Stock Strategy Lab. Every source includes the idea, its limits,
+              and how it influenced the app.
+            </p>
+          </div>
+          <a class="research-skip" href="#researchLog">View research log ↓</a>
+        </div>
+        <div class="research-principles">
+          <article>
+            <span>CORE PRINCIPLE</span>
+            <h3>Estimate odds—not certainty</h3>
+            <p>
+              Professional systematic investing combines weak evidence, controls
+              exposure, and expects individual forecasts to be wrong. The
+              ensemble score is evidence strength, not the probability that a
+              stock will rise.
+            </p>
+          </article>
+          <article>
+            <span>VALIDATION PRINCIPLE</span>
+            <h3>Protect against false discoveries</h3>
+            <p>
+              Chronological testing, next-session execution, trading costs,
+              adequate samples, and out-of-sample evaluation matter more than
+              impressive historical returns.
+            </p>
+          </article>
+          <article>
+            <span>RISK PRINCIPLE</span>
+            <h3>Survival comes first</h3>
+            <p>
+              Volatility, drawdown, concentration, and market regime determine
+              how much confidence a directional signal deserves.
+            </p>
+          </article>
+        </div>
+        <div class="paper-grid">
+          <article>
+            <div>
+              <span class="paper-topic">MOMENTUM</span
+              ><span class="paper-year">2012</span>
+            </div>
+            <h3>Time Series Momentum</h3>
+            <p class="authors">Moskowitz, Ooi & Pedersen</p>
+            <p>
+              Documents momentum across equity-index, currency, commodity, and
+              bond futures. Past direction contained useful information across
+              multiple horizons.
+            </p>
+            <p class="application">
+              <b>Used in the app:</b> 3-, 6-, and 12-month momentum,
+              moving-average structure, and trend slopes.
+            </p>
+            <a
+              href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2089463"
+              target="_blank"
+              rel="noopener"
+              >Read the paper ↗</a
+            >
+          </article>
+          <article>
+            <div>
+              <span class="paper-topic">TAIL RISK</span
+              ><span class="paper-year">2016</span>
+            </div>
+            <h3>Momentum Crashes</h3>
+            <p class="authors">Daniel & Moskowitz</p>
+            <p>
+              Shows that momentum can suffer severe losses during abrupt market
+              reversals, especially after declines and during high volatility.
+            </p>
+            <p class="application">
+              <b>Used in the app:</b> regime-dependent weights, volatility
+              penalties, drawdown measures, and reduced confidence when risk is
+              elevated.
+            </p>
+            <a
+              href="https://www.nber.org/system/files/working_papers/w20439/w20439.pdf"
+              target="_blank"
+              rel="noopener"
+              >Read the paper ↗</a
+            >
+          </article>
+          <article>
+            <div>
+              <span class="paper-topic">RISK MANAGEMENT</span
+              ><span class="paper-year">2017</span>
+            </div>
+            <h3>Volatility-Managed Portfolios</h3>
+            <p class="authors">Moreira & Muir</p>
+            <p>
+              Studies reducing portfolio exposure when volatility is high and
+              reports improved risk-adjusted performance across several factors.
+            </p>
+            <p class="application">
+              <b>Used in the app:</b> annualized realized volatility,
+              risk-quality scoring, and moderate/elevated/high risk labels.
+            </p>
+            <a
+              href="https://www.nber.org/system/files/working_papers/w22208/w22208.pdf"
+              target="_blank"
+              rel="noopener"
+              >Read the paper ↗</a
+            >
+          </article>
+          <article>
+            <div>
+              <span class="paper-topic">RELATIVE VALUE</span
+              ><span class="paper-year">2006</span>
+            </div>
+            <h3>Pairs Trading</h3>
+            <p class="authors">Gatev, Goetzmann & Rouwenhorst</p>
+            <p>
+              Tests a systematic relative-value strategy that matches
+              historically similar stocks and trades unusually large
+              divergences.
+            </p>
+            <p class="application">
+              <b>Used now:</b> the principle of comparing a stock with a
+              benchmark. <b>Future:</b> sector and peer-relative models.
+            </p>
+            <a
+              href="https://academic.oup.com/rfs/article-abstract/19/3/797/1646694"
+              target="_blank"
+              rel="noopener"
+              >Read the paper ↗</a
+            >
+          </article>
+          <article>
+            <div>
+              <span class="paper-topic">TRANSACTION COSTS</span
+              ><span class="paper-year">2009</span>
+            </div>
+            <h3>
+              Dynamic Trading with Predictable Returns and Transaction Costs
+            </h3>
+            <p class="authors">Gârleanu & Pedersen</p>
+            <p>
+              Explains how optimal trading depends on expected returns, changing
+              opportunities, risk, and the cost of adjusting a portfolio.
+            </p>
+            <p class="application">
+              <b>Used in the app:</b> turnover matters, and the backtest
+              subtracts an estimated cost on every entry and exit.
+            </p>
+            <a
+              href="https://www.nber.org/system/files/working_papers/w15205/w15205.pdf"
+              target="_blank"
+              rel="noopener"
+              >Read the paper ↗</a
+            >
+          </article>
+          <article>
+            <div>
+              <span class="paper-topic">FACTOR TIMING</span
+              ><span class="paper-year">2020</span>
+            </div>
+            <h3>Factor Timing</h3>
+            <p class="authors">Haddad, Kozak & Santosh</p>
+            <p>
+              Studies time variation in factor opportunities and the potential
+              value of conditioning factor exposure on the market environment.
+            </p>
+            <p class="application">
+              <b>Used in the app:</b> bull, bear, volatile, and range regimes
+              receive different ensemble weights.
+            </p>
+            <a
+              href="https://www.nber.org/system/files/working_papers/w26708/w26708.pdf"
+              target="_blank"
+              rel="noopener"
+              >Read the paper ↗</a
+            >
+          </article>
+          <article>
+            <div>
+              <span class="paper-topic">VALIDATION</span
+              ><span class="paper-year">2025</span>
+            </div>
+            <h3>Interpretable Hypothesis-Driven Trading</h3>
+            <p class="authors">Deep, Deep & Lamptey</p>
+            <p>
+              Presents a walk-forward framework emphasizing information
+              discipline, rolling out-of-sample testing, realistic constraints,
+              and interpretable hypotheses.
+            </p>
+            <p class="application">
+              <b>Used now:</b> plain-English reasons and next-session execution.
+              <b>Future:</b> rolling walk-forward result panels.
+            </p>
+            <a
+              href="https://arxiv.org/html/2512.12924v1"
+              target="_blank"
+              rel="noopener"
+              >Read the paper ↗</a
+            >
+          </article>
+          <article>
+            <div>
+              <span class="paper-topic">OVERFITTING</span
+              ><span class="paper-year">2026</span>
+            </div>
+            <h3>Spurious Predictability in Financial Machine Learning</h3>
+            <p class="authors">Nikolopoulos</p>
+            <p>
+              Shows how repeated model and specification searches can generate
+              apparently significant results even where genuine predictability
+              is absent.
+            </p>
+            <p class="application">
+              <b>Used in the app:</b> transparent fixed rules, data-quality
+              warnings, sample-size warnings, and no black-box price prediction.
+            </p>
+            <a
+              href="https://arxiv.org/abs/2604.15531"
+              target="_blank"
+              rel="noopener"
+              >Read the paper ↗</a
+            >
+          </article>
+          <article>
+            <div>
+              <span class="paper-topic">VALUATION</span
+              ><span class="paper-year">2006</span>
+            </div>
+            <h3>Valuation Approaches and Metrics</h3>
+            <p class="authors">Aswath Damodaran</p>
+            <p>
+              Explains how valuation multiples depend on growth, risk, payout,
+              and interest rates—and why PEG can mislead when definitions or
+              comparison groups are inconsistent.
+            </p>
+            <p class="application">
+              <b>Used in the app:</b> P/E, forward P/E, and PEG are combined
+              with growth and momentum; missing or negative ratios are not
+              labeled cheap.
+            </p>
+            <a
+              href="https://pages.stern.nyu.edu/~adamodar/pdfiles/papers/valuesurvey.pdf"
+              target="_blank"
+              rel="noopener"
+              >Read the paper ↗</a
+            >
+          </article>
+          <article>
+            <div>
+              <span class="paper-topic">FUNDAMENTAL MOMENTUM</span
+              ><span class="paper-year">2015</span>
+            </div>
+            <h3>Fundamentally, Momentum is Fundamental Momentum</h3>
+            <p class="authors">Robert Novy-Marx</p>
+            <p>
+              Finds that momentum in company fundamentals and earnings
+              information helps explain the performance and risks of
+              price-momentum strategies.
+            </p>
+            <p class="application">
+              <b>Used in the app:</b> earnings-growth estimates influence
+              valuation, but a favorable multiple still requires acceptable
+              price momentum.
+            </p>
+            <a
+              href="https://www.nber.org/system/files/working_papers/w20984/w20984.pdf"
+              target="_blank"
+              rel="noopener"
+              >Read the paper ↗</a
+            >
+          </article>
+          <article>
+            <div>
+              <span class="paper-topic">PAPER TRADING</span
+              ><span class="paper-year">2025</span>
+            </div>
+            <h3>Investopedia Stock Simulator</h3>
+            <p class="authors">Investopedia Simulator Support</p>
+            <p>
+              Documents a risk-free virtual environment supporting stocks, ETFs,
+              options, short sales, portfolio tracking, games, and familiar
+              trade controls.
+            </p>
+            <p class="application">
+              <b>Used in the app:</b> recommendations become reviewable
+              limit-order tickets that the user manually approves and enters
+              into Investopedia.
+            </p>
+            <a
+              href="https://support.investopedia.com/hc/en-us/articles/30224621944471-Questions-about-the-new-Stock-Simulator"
+              target="_blank"
+              rel="noopener"
+              >Read the documentation ↗</a
+            >
+          </article>
+          <article>
+            <div>
+              <span class="paper-topic">POSITION SIZING</span
+              ><span class="paper-year">2025</span>
+            </div>
+            <h3>Risk per Trade</h3>
+            <p class="authors">Investopedia educational reference</p>
+            <p>
+              Explains calculating shares from account risk and the distance
+              between entry and stop rather than choosing an arbitrary share
+              count.
+            </p>
+            <p class="application">
+              <b>Used in the app:</b> each proposed order risks at most 1% of a
+              $100,000 virtual account and cannot exceed a 10% position.
+            </p>
+            <a
+              href="https://www.investopedia.com/terms/t/two-percent-rule.asp"
+              target="_blank"
+              rel="noopener"
+              >Read the reference ↗</a
+            >
+          </article>
+        </div>
+        <div class="research-boundaries">
+          <h3>What this evidence does—and does not—prove</h3>
+          <ul>
+            <li>
+              Published historical patterns can weaken after discovery or
+              disappear after costs.
+            </li>
+            <li>
+              A strategy that works across assets or portfolios may not work on
+              one stock.
+            </li>
+            <li>
+              Backtests are estimates, not live results, and depend on execution
+              assumptions.
+            </li>
+            <li>
+              The current app uses daily OHLCV data; it does not yet include
+              fundamentals, options, news, alternative data, or portfolio
+              constraints.
+            </li>
+            <li>No paper or signal can guarantee a profitable investment.</li>
+          </ul>
+        </div>
+        <div id="researchLog" class="research-log">
+          <div>
+            <span>RESEARCH LOG</span>
+            <h3>How the library evolves</h3>
+          </div>
+          <ol>
+            <li>
+              <time datetime="2026-08-05">August 5, 2026</time>
+              <p>
+                Added the approval-based Investopedia Paper Trade Queue with
+                risk-sized limit orders, protective stops, two-risk profit
+                objectives, duplicate blocking, local status tracking, and CSV
+                journaling. No order is transmitted automatically.
+              </p>
+            </li>
+            <li>
+              <time datetime="2026-08-05">August 5, 2026</time>
+              <p>
+                Added trailing P/E, forward P/E, PEG, and earnings growth
+                through a new Value + Momentum strategy. Valuation is excluded
+                when live ratios are insufficient, and historical tests refuse
+                to reuse today’s fundamentals.
+              </p>
+            </li>
+            <li>
+              <time datetime="2026-08-05">August 5, 2026</time>
+              <p>
+                Added research on valuation multiples, PEG consistency, and
+                fundamental momentum. The evidence led to growth- and
+                momentum-confirmed valuation rather than a universal low-P/E
+                rule.
+              </p>
+            </li>
+            <li>
+              <time datetime="2026-08-05">August 5, 2026</time>
+              <p>
+                Added the initial research library covering momentum, momentum
+                crashes, volatility management, pairs trading, transaction
+                costs, factor timing, walk-forward validation, and backtest
+                overfitting.
+              </p>
+            </li>
+            <li>
+              <time datetime="2026-08-05">August 5, 2026</time>
+              <p>
+                Connected the research to the first Quant Ensemble: trend,
+                SPY-relative strength, mean reversion, breakout quality, risk
+                scoring, regime weights, and cost-aware backtests.
+              </p>
+            </li>
+          </ol>
+        </div>
+      </section>
+    </main>
+    <section class="install-panel" aria-labelledby="installTitle">
+      <div>
+        <span class="eyebrow">INSTALLABLE APP</span>
+        <h2 id="installTitle">Keep the lab close</h2>
+        <p>
+          Install the scanner for a focused app window and an offline demo
+          experience.
+        </p>
       </div>
-      <div class="paper-grid">
-        <article><div><span class="paper-topic">MOMENTUM</span><span class="paper-year">2012</span></div><h3>Time Series Momentum</h3><p class="authors">Moskowitz, Ooi & Pedersen</p><p>Documents momentum across equity-index, currency, commodity, and bond futures. Past direction contained useful information across multiple horizons.</p><p class="application"><b>Used in the app:</b> 3-, 6-, and 12-month momentum, moving-average structure, and trend slopes.</p><a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2089463" target="_blank" rel="noopener">Read the paper ↗</a></article>
-        <article><div><span class="paper-topic">TAIL RISK</span><span class="paper-year">2016</span></div><h3>Momentum Crashes</h3><p class="authors">Daniel & Moskowitz</p><p>Shows that momentum can suffer severe losses during abrupt market reversals, especially after declines and during high volatility.</p><p class="application"><b>Used in the app:</b> regime-dependent weights, volatility penalties, drawdown measures, and reduced confidence when risk is elevated.</p><a href="https://www.nber.org/system/files/working_papers/w20439/w20439.pdf" target="_blank" rel="noopener">Read the paper ↗</a></article>
-        <article><div><span class="paper-topic">RISK MANAGEMENT</span><span class="paper-year">2017</span></div><h3>Volatility-Managed Portfolios</h3><p class="authors">Moreira & Muir</p><p>Studies reducing portfolio exposure when volatility is high and reports improved risk-adjusted performance across several factors.</p><p class="application"><b>Used in the app:</b> annualized realized volatility, risk-quality scoring, and moderate/elevated/high risk labels.</p><a href="https://www.nber.org/system/files/working_papers/w22208/w22208.pdf" target="_blank" rel="noopener">Read the paper ↗</a></article>
-        <article><div><span class="paper-topic">RELATIVE VALUE</span><span class="paper-year">2006</span></div><h3>Pairs Trading</h3><p class="authors">Gatev, Goetzmann & Rouwenhorst</p><p>Tests a systematic relative-value strategy that matches historically similar stocks and trades unusually large divergences.</p><p class="application"><b>Used now:</b> the principle of comparing a stock with a benchmark. <b>Future:</b> sector and peer-relative models.</p><a href="https://academic.oup.com/rfs/article-abstract/19/3/797/1646694" target="_blank" rel="noopener">Read the paper ↗</a></article>
-        <article><div><span class="paper-topic">TRANSACTION COSTS</span><span class="paper-year">2009</span></div><h3>Dynamic Trading with Predictable Returns and Transaction Costs</h3><p class="authors">Gârleanu & Pedersen</p><p>Explains how optimal trading depends on expected returns, changing opportunities, risk, and the cost of adjusting a portfolio.</p><p class="application"><b>Used in the app:</b> turnover matters, and the backtest subtracts an estimated cost on every entry and exit.</p><a href="https://www.nber.org/system/files/working_papers/w15205/w15205.pdf" target="_blank" rel="noopener">Read the paper ↗</a></article>
-        <article><div><span class="paper-topic">FACTOR TIMING</span><span class="paper-year">2020</span></div><h3>Factor Timing</h3><p class="authors">Haddad, Kozak & Santosh</p><p>Studies time variation in factor opportunities and the potential value of conditioning factor exposure on the market environment.</p><p class="application"><b>Used in the app:</b> bull, bear, volatile, and range regimes receive different ensemble weights.</p><a href="https://www.nber.org/system/files/working_papers/w26708/w26708.pdf" target="_blank" rel="noopener">Read the paper ↗</a></article>
-        <article><div><span class="paper-topic">VALIDATION</span><span class="paper-year">2025</span></div><h3>Interpretable Hypothesis-Driven Trading</h3><p class="authors">Deep, Deep & Lamptey</p><p>Presents a walk-forward framework emphasizing information discipline, rolling out-of-sample testing, realistic constraints, and interpretable hypotheses.</p><p class="application"><b>Used now:</b> plain-English reasons and next-session execution. <b>Future:</b> rolling walk-forward result panels.</p><a href="https://arxiv.org/html/2512.12924v1" target="_blank" rel="noopener">Read the paper ↗</a></article>
-        <article><div><span class="paper-topic">OVERFITTING</span><span class="paper-year">2026</span></div><h3>Spurious Predictability in Financial Machine Learning</h3><p class="authors">Nikolopoulos</p><p>Shows how repeated model and specification searches can generate apparently significant results even where genuine predictability is absent.</p><p class="application"><b>Used in the app:</b> transparent fixed rules, data-quality warnings, sample-size warnings, and no black-box price prediction.</p><a href="https://arxiv.org/abs/2604.15531" target="_blank" rel="noopener">Read the paper ↗</a></article>
-        <article><div><span class="paper-topic">VALUATION</span><span class="paper-year">2006</span></div><h3>Valuation Approaches and Metrics</h3><p class="authors">Aswath Damodaran</p><p>Explains how valuation multiples depend on growth, risk, payout, and interest rates—and why PEG can mislead when definitions or comparison groups are inconsistent.</p><p class="application"><b>Used in the app:</b> P/E, forward P/E, and PEG are combined with growth and momentum; missing or negative ratios are not labeled cheap.</p><a href="https://pages.stern.nyu.edu/~adamodar/pdfiles/papers/valuesurvey.pdf" target="_blank" rel="noopener">Read the paper ↗</a></article>
-        <article><div><span class="paper-topic">FUNDAMENTAL MOMENTUM</span><span class="paper-year">2015</span></div><h3>Fundamentally, Momentum is Fundamental Momentum</h3><p class="authors">Robert Novy-Marx</p><p>Finds that momentum in company fundamentals and earnings information helps explain the performance and risks of price-momentum strategies.</p><p class="application"><b>Used in the app:</b> earnings-growth estimates influence valuation, but a favorable multiple still requires acceptable price momentum.</p><a href="https://www.nber.org/system/files/working_papers/w20984/w20984.pdf" target="_blank" rel="noopener">Read the paper ↗</a></article>
-      </div>
-      <div class="research-boundaries"><h3>What this evidence does—and does not—prove</h3><ul><li>Published historical patterns can weaken after discovery or disappear after costs.</li><li>A strategy that works across assets or portfolios may not work on one stock.</li><li>Backtests are estimates, not live results, and depend on execution assumptions.</li><li>The current app uses daily OHLCV data; it does not yet include fundamentals, options, news, alternative data, or portfolio constraints.</li><li>No paper or signal can guarantee a profitable investment.</li></ul></div>
-      <div id="researchLog" class="research-log"><div><span>RESEARCH LOG</span><h3>How the library evolves</h3></div><ol><li><time datetime="2026-08-05">August 5, 2026</time><p>Added trailing P/E, forward P/E, PEG, and earnings growth through a new Value + Momentum strategy. Valuation is excluded when live ratios are insufficient, and historical tests refuse to reuse today’s fundamentals.</p></li><li><time datetime="2026-08-05">August 5, 2026</time><p>Added research on valuation multiples, PEG consistency, and fundamental momentum. The evidence led to growth- and momentum-confirmed valuation rather than a universal low-P/E rule.</p></li><li><time datetime="2026-08-05">August 5, 2026</time><p>Added the initial research library covering momentum, momentum crashes, volatility management, pairs trading, transaction costs, factor timing, walk-forward validation, and backtest overfitting.</p></li><li><time datetime="2026-08-05">August 5, 2026</time><p>Connected the research to the first Quant Ensemble: trend, SPY-relative strength, mean reversion, breakout quality, risk scoring, regime weights, and cost-aware backtests.</p></li></ol></div>
+      <button id="installButton">Install app</button
+      ><button id="installHelpButton" class="secondary-button">
+        Installation help
+      </button>
     </section>
-  </main>
-  <section class="install-panel" aria-labelledby="installTitle"><div><span class="eyebrow">INSTALLABLE APP</span><h2 id="installTitle">Keep the lab close</h2><p>Install the scanner for a focused app window and an offline demo experience.</p></div><button id="installButton">Install app</button><button id="installHelpButton" class="secondary-button">Installation help</button></section>
-  <footer><div class="brand"><b>SL</b><span>Stock <em>Strategy</em> Lab</span></div><p>Educational analytics—not personalized financial advice or a recommendation to buy or sell.</p><p id="footerSource">Demo data is simulated and not suitable for trading decisions.</p></footer>
+    <footer>
+      <div class="brand">
+        <b>SL</b><span>Stock <em>Strategy</em> Lab</span>
+      </div>
+      <p>
+        Educational analytics—not personalized financial advice or a
+        recommendation to buy or sell.
+      </p>
+      <p id="footerSource">
+        Demo data is simulated and not suitable for trading decisions.
+      </p>
+    </footer>
 
-  <nav class="bottom-nav" aria-label="Mobile navigation"><a href="#scanner" data-section="scanner"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg><span>Scan</span></a><a href="#guide" data-section="guide"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></svg><span>Strategies</span></a><a href="#backtest" data-section="backtest"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V9M10 18V4M16 18v-6M22 18H2"/></svg><span>Backtest</span></a><button id="mobileJumpButton" aria-haspopup="dialog" aria-controls="jumpDialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>More</span></button></nav>
+    <nav class="bottom-nav" aria-label="Mobile navigation">
+      <a href="#scanner" data-section="scanner"
+        ><svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="6" />
+          <path d="m16 16 4 4" /></svg
+        ><span>Scan</span></a
+      ><a href="#guide" data-section="guide"
+        ><svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 5h16v14H4zM8 9h8M8 13h5" /></svg
+        ><span>Strategies</span></a
+      ><a href="#backtest" data-section="backtest"
+        ><svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 18V9M10 18V4M16 18v-6M22 18H2" /></svg
+        ><span>Backtest</span></a
+      ><button
+        id="mobileJumpButton"
+        aria-haspopup="dialog"
+        aria-controls="jumpDialog"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 6h16M4 12h16M4 18h16" /></svg
+        ><span>More</span>
+      </button>
+    </nav>
 
-  <dialog id="jumpDialog" aria-labelledby="jumpTitle"><div class="dialog-head"><div><span class="eyebrow">COMPLETE FEATURE LIST</span><h2 id="jumpTitle">Jump to</h2></div><button class="dialog-close" aria-label="Close jump menu">×</button></div><div class="jump-grid"><a href="#top"><b>Overview</b><span>Combined signal and regime</span></a><a href="#scanner"><b>Market scanner</b><span>Ticker search and evidence</span></a><a href="#guide"><b>Strategy guide</b><span>Four analysis lenses</span></a><a href="#backtest"><b>Cost-aware backtest</b><span>Compounded performance</span></a><a href="#log"><b>Decision log</b><span>Reasons and CSV export</span></a><a href="#research"><b>Research library</b><span>Papers, summaries, and research log</span></a><button id="dialogInstallHelp"><b>Install & offline</b><span>Device-specific instructions</span></button></div></dialog>
+    <dialog id="jumpDialog" aria-labelledby="jumpTitle">
+      <div class="dialog-head">
+        <div>
+          <span class="eyebrow">COMPLETE FEATURE LIST</span>
+          <h2 id="jumpTitle">Jump to</h2>
+        </div>
+        <button class="dialog-close" aria-label="Close jump menu">×</button>
+      </div>
+      <div class="jump-grid">
+        <a href="#top"><b>Overview</b><span>Combined signal and regime</span></a
+        ><a href="#scanner"
+          ><b>Market scanner</b><span>Ticker search and evidence</span></a
+        ><a href="#guide"
+          ><b>Strategy guide</b><span>Five analysis lenses</span></a
+        ><a href="#backtest"
+          ><b>Cost-aware backtest</b><span>Compounded performance</span></a
+        ><a href="#log"
+          ><b>Decision log</b><span>Reasons and CSV export</span></a
+        ><a href="#paperTrades"
+          ><b>Investopedia paper trades</b
+          ><span>Approval queue and journal</span></a
+        ><a href="#research"
+          ><b>Research library</b
+          ><span>Papers, summaries, and research log</span></a
+        ><button id="dialogInstallHelp">
+          <b>Install & offline</b><span>Device-specific instructions</span>
+        </button>
+      </div>
+    </dialog>
 
-  <dialog id="installDialog" aria-labelledby="installHelpTitle"><div class="dialog-head"><div><span class="eyebrow">INSTALLATION HELP</span><h2 id="installHelpTitle">Add Stocks to your device</h2></div><button class="dialog-close" aria-label="Close installation help">×</button></div><div class="install-steps"><p><b>iPhone or iPad</b><span>Open in Safari → Share → Add to Home Screen.</span></p><p><b>Android</b><span>Open Chrome’s menu → Install app or Add to Home Screen.</span></p><p><b>Mac Safari</b><span>Choose File → Add to Dock.</span></p><p><b>Chrome or Edge desktop</b><span>Open the browser menu → Install page as app.</span></p><p><b>Firefox desktop</b><span>Open this site in Chrome or Edge to install it.</span></p><p><b>Remove the app</b><span>Use your device’s normal app uninstall process, or remove it from the home screen or dock.</span></p></div></dialog>
-</body>
+    <dialog id="installDialog" aria-labelledby="installHelpTitle">
+      <div class="dialog-head">
+        <div>
+          <span class="eyebrow">INSTALLATION HELP</span>
+          <h2 id="installHelpTitle">Add Stocks to your device</h2>
+        </div>
+        <button class="dialog-close" aria-label="Close installation help">
+          ×
+        </button>
+      </div>
+      <div class="install-steps">
+        <p>
+          <b>iPhone or iPad</b
+          ><span>Open in Safari → Share → Add to Home Screen.</span>
+        </p>
+        <p>
+          <b>Android</b
+          ><span>Open Chrome’s menu → Install app or Add to Home Screen.</span>
+        </p>
+        <p><b>Mac Safari</b><span>Choose File → Add to Dock.</span></p>
+        <p>
+          <b>Chrome or Edge desktop</b
+          ><span>Open the browser menu → Install page as app.</span>
+        </p>
+        <p>
+          <b>Firefox desktop</b
+          ><span>Open this site in Chrome or Edge to install it.</span>
+        </p>
+        <p>
+          <b>Remove the app</b
+          ><span
+            >Use your device’s normal app uninstall process, or remove it from
+            the home screen or dock.</span
+          >
+        </p>
+      </div>
+    </dialog>
+  </body>
 </html>
