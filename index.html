@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Regime-aware stock signals with explainable strategies, honest backtests, and downloadable decision logs.">
+  <title>Stock Strategy Lab</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <nav>
+    <a class="brand" href="#top"><b>SL</b><span>Stock <em>Strategy</em> Lab</span></a>
+    <div class="nav-links"><a href="#scanner">Scanner</a><a href="#guide">Strategies</a><a href="#backtest">Backtest</a><a href="#log">Decision log</a></div>
+    <span id="dataBadge" class="data-badge demo"><i></i><span>DEMO DATA</span></span>
+  </nav>
+
+  <header id="top">
+    <div>
+      <span class="eyebrow">REGIME-AWARE · EXPLAINABLE · REPRODUCIBLE</span>
+      <h1>Know <em>why</em><br>before you trade.</h1>
+      <p>Scan trend, mean-reversion, and volatility signals. Every decision includes the evidence, a plain-English explanation, and a corrected compounded backtest.</p>
+      <a class="primary" href="#scanner">Start a scan <span>→</span></a>
+    </div>
+    <aside class="hero-card">
+      <div><small>MARKET REGIME</small><b id="heroRegime">CALCULATING</b></div>
+      <div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="hero-signal"><span>Combined signal for <b id="heroTicker">AAPL</b></span><strong id="heroSignal">HOLD</strong></div>
+      <p id="heroReason">Signals are weighted for the detected market environment.</p>
+    </aside>
+  </header>
+
+  <main>
+    <section id="scanner" class="scanner">
+      <div class="section-title">
+        <div><span>01 · MARKET SCANNER</span><h2>Inspect the evidence</h2><p>Search a US ticker for up to two years of daily price data.</p></div>
+        <form id="searchForm"><label class="sr-only" for="tickerInput">Ticker symbol</label><input id="tickerInput" value="AAPL" maxlength="10" autocomplete="off"><button id="scanButton">Run scan →</button></form>
+      </div>
+      <div id="notice" class="notice" role="status"></div>
+      <div class="terminal">
+        <aside class="strategy-nav">
+          <div class="quote"><span id="ticker">AAPL</span><strong id="price">—</strong><small id="asOf">Loading…</small></div>
+          <div class="regime-card"><small>DETECTED REGIME</small><b id="regime">—</b><p id="regimeText">Calculating current market structure.</p></div>
+          <label>STRATEGIES</label>
+          <button class="strategy-button active" data-strategy="trend"><span><b>Trend Confirmation</b><small>20 / 50 / 200-day averages</small></span><em>—</em></button>
+          <button class="strategy-button" data-strategy="mean"><span><b>Bollinger + RSI Reversal</b><small>Range-market mean reversion</small></span><em>—</em></button>
+          <button class="strategy-button" data-strategy="atr"><span><b>ATR Breakout</b><small>Volatility + volume confirmation</small></span><em>—</em></button>
+        </aside>
+        <article class="workspace">
+          <div class="workspace-head"><div><span id="strategySubtitle">20 / 50 / 200-DAY AVERAGES</span><h3 id="strategyName">Trend Confirmation</h3></div><div><small>CURRENT SIGNAL</small><b id="currentSignal">—</b></div></div>
+          <div class="chart-wrap"><canvas id="priceChart" aria-label="Price and indicator chart"></canvas></div>
+          <div class="reason"><i>✓</i><div><small>DECISION REASON</small><p id="reasonText">Calculating signal evidence…</p></div></div>
+          <div id="metrics" class="metrics"></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="guide" class="guide">
+      <div class="section-title pale"><div><span>02 · STRATEGY GUIDE</span><h2>One market, three lenses</h2><p>The scanner identifies context before interpreting any signal.</p></div></div>
+      <div class="guide-grid">
+        <article><span>01</span><h3>Trend Confirmation</h3><p>Looks for a 20/50-day crossover and confirms it against the 200-day trend. This reduces false calls from small price wiggles.</p><button data-open="trend">Open strategy ↗</button></article>
+        <article><span>02</span><h3>Bollinger + RSI Reversal</h3><p>Waits for price to leave and then re-enter a Bollinger Band while RSI confirms exhaustion. It does not buy every low RSI reading.</p><button data-open="mean">Open strategy ↗</button></article>
+        <article><span>03</span><h3>ATR Breakout</h3><p>Uses prior support or resistance, an ATR buffer, and volume confirmation. Today's bar is excluded from the breakout threshold.</p><button data-open="atr">Open strategy ↗</button></article>
+      </div>
+      <div class="process"><span><b>1</b>Classify regime<small>Trend · range · volatile</small></span><i>→</i><span><b>2</b>Calculate indicators<small>Past data only</small></span><i>→</i><span><b>3</b>Confirm signal<small>Price · trend · volume</small></span><i>→</i><span><b>4</b>Record reason<small>Decision stays auditable</small></span></div>
+    </section>
+
+    <section id="backtest" class="backtest">
+      <div><span class="eyebrow">03 · CORRECTED BACKTEST</span><h2>Strategy versus simply holding</h2><p>Signals are calculated at the close and executed at the <strong>next session's open</strong>, preventing look-ahead. Returns compound across completed trades. Open positions are marked to market.</p><div class="stats"><div><small>STRATEGY RETURN</small><b id="strategyReturn">—</b></div><div><small>BUY & HOLD</small><b id="holdReturn">—</b></div><div><small>TRADES</small><b id="trades">—</b></div><div><small>WIN RATE</small><b id="winRate">—</b></div><div><small>MAX DRAWDOWN</small><b id="drawdown">—</b></div><div><small>DATA POINTS</small><b id="points">—</b></div></div></div>
+      <div class="curve-card"><canvas id="equityChart" aria-label="Backtest equity curve"></canvas><small>Educational illustration. Excludes fees, taxes, slippage, dividends, and survivorship bias. Past performance does not predict future results.</small></div>
+    </section>
+
+    <section id="log" class="decision-log">
+      <div class="section-title pale"><div><span>04 · DECISION LOG</span><h2>Every decision, recorded</h2><p>Download the exact values and plain-English reasoning behind the current scan.</p></div><button id="downloadCsv">Download CSV ↓</button></div>
+      <div class="table-wrap"><table><thead><tr><th>DATE</th><th>SYMBOL</th><th>STRATEGY</th><th>REGIME</th><th>SIGNAL</th><th>DECISION REASON</th></tr></thead><tbody id="logBody"></tbody></table></div>
+    </section>
+  </main>
+  <footer><div class="brand"><b>SL</b><span>Stock <em>Strategy</em> Lab</span></div><p>Educational analytics—not personalized financial advice.</p><p id="footerSource">Demo data is simulated and not suitable for trading decisions.</p></footer>
+</body>
+</html>
