@@ -10,6 +10,9 @@ let source = 'DEMO';
 let analysis = null;
 let priceChart = null;
 let equityChart = null;
+let currentPaperTicket = null;
+let paperTradeQueue = [];
+const DEFAULT_VIRTUAL_BALANCE = 148264.79;
 
 const average = values => values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
 const deviation = values => {
@@ -429,6 +432,7 @@ function render() {
   renderPriceChart();
   renderBacktest();
   renderLog();
+  renderPaperTicket();
 }
 
 function formatMetric(value, type) {
@@ -501,11 +505,151 @@ function downloadCsv() {
   URL.revokeObjectURL(anchor.href);
 }
 
+function loadPaperTrades() {
+  try { paperTradeQueue = JSON.parse(localStorage.getItem('stocks-paper-trades') || '[]'); }
+  catch { paperTradeQueue = []; }
+  renderTradeQueue();
+}
+
+function savePaperTrades() {
+  localStorage.setItem('stocks-paper-trades', JSON.stringify(paperTradeQueue));
+  renderTradeQueue();
+  renderPaperTicket();
+}
+
+function getVirtualBalance() {
+  const input = $('#virtualBalanceInput');
+  const value = Number(input?.value);
+  return Number.isFinite(value) && value >= 100 ? value : DEFAULT_VIRTUAL_BALANCE;
+}
+
+function updateVirtualBalance() {
+  const balance = getVirtualBalance();
+  localStorage.setItem('stocks-virtual-balance', balance.toFixed(2));
+  $('#virtualBalanceInput').value = balance.toFixed(2);
+  $('#maxRiskDisplay').textContent = formatMoney(balance * .01);
+  $('#maxPositionDisplay').textContent = formatMoney(balance * .10);
+  renderPaperTicket();
+}
+
+function buildPaperTicket() {
+  if (!analysis) return { allowed: false, reason: 'Scan a ticker first.' };
+  if (paperTradeQueue.some(ticket => ticket.symbol === ticker && ['APPROVED', 'PLACED'].includes(ticket.status))) return { allowed: false, reason: 'An approved or placed ticket for this ticker already exists. Duplicate orders are blocked.' };
+  if (source !== 'LIVE') return { allowed: false, reason: 'Paper-trade recommendations are blocked while simulated market data is displayed.' };
+  if (!analysis.valuationAvailable || analysis.fundamentals?.source !== 'LIVE FUNDAMENTALS') return { allowed: false, reason: 'A BUY ticket requires live P/E, forward P/E, and PEG coverage. Valuation data is currently incomplete.' };
+  if (analysis.ensembleSignal !== 'BUY' || analysis.ensembleScore < 68) return { allowed: false, reason: 'No trade: the Quant Ensemble has not reached the 68/100 BUY threshold.' };
+  if (analysis.riskLevel === 'HIGH') return { allowed: false, reason: 'No trade: current volatility or drawdown produces a HIGH risk classification.' };
+  const entry = analysis.latest.close;
+  const stop = Math.min(analysis.invalidation, entry - analysis.atr14 * .75);
+  const riskPerShare = entry - stop;
+  if (!(riskPerShare > 0)) return { allowed: false, reason: 'No trade: a valid protective stop could not be calculated below the entry price.' };
+  const virtualBalance = getVirtualBalance();
+  const sharesByRisk = Math.floor((virtualBalance * .01) / riskPerShare);
+  const sharesByPosition = Math.floor((virtualBalance * .10) / entry);
+  const shares = Math.max(0, Math.min(sharesByRisk, sharesByPosition));
+  if (shares < 1) return { allowed: false, reason: 'No trade: the risk-based position size is below one share.' };
+  return {
+    allowed: true,
+    id: Date.now().toString(36),
+    created: new Date().toISOString(),
+    symbol: ticker,
+    action: 'BUY',
+    orderType: 'LIMIT BUY',
+    entry,
+    shares,
+    positionValue: entry * shares,
+    stop,
+    target: entry + riskPerShare * 2,
+    dollarsAtRisk: riskPerShare * shares,
+    timing: 'Place only at or below the limit after confirming the ensemble still reads BUY.',
+    score: analysis.ensembleScore,
+    valuationScore: analysis.valuationScore,
+    riskLevel: analysis.riskLevel,
+    reason: analysis.strategies.ensemble.reason,
+    status: 'APPROVED'
+  };
+}
+
+function renderPaperTicket() {
+  if (!$('#ticketSymbol')) return;
+  const ticket = buildPaperTicket();
+  currentPaperTicket = ticket.allowed ? ticket : null;
+  $('#ticketSymbol').textContent = analysis ? ticker : 'Scan a ticker';
+  applySignal($('#ticketAction'), ticket.allowed ? 'BUY' : 'WAIT');
+  $('#ticketGate').textContent = ticket.allowed ? 'All gates passed: live data, live valuation, ensemble BUY, and acceptable risk.' : ticket.reason;
+  $('#ticketOrderType').textContent = ticket.allowed ? ticket.orderType : '—';
+  $('#ticketEntry').textContent = ticket.allowed ? formatMoney(ticket.entry) : '—';
+  $('#ticketShares').textContent = ticket.allowed ? ticket.shares : '—';
+  $('#ticketValue').textContent = ticket.allowed ? formatMoney(ticket.positionValue) : '—';
+  $('#ticketStop').textContent = ticket.allowed ? formatMoney(ticket.stop) : '—';
+  $('#ticketTarget').textContent = ticket.allowed ? formatMoney(ticket.target) : '—';
+  $('#ticketRisk').textContent = ticket.allowed ? formatMoney(ticket.dollarsAtRisk) : '—';
+  $('#ticketTiming').textContent = ticket.allowed ? ticket.timing : 'Wait and rescan after conditions change.';
+  $('#ticketReason').textContent = ticket.allowed ? ticket.reason : 'The system produces no order until every paper-trading gate passes.';
+  $('#queueTradeButton').disabled = !ticket.allowed;
+  $('#copyTradeButton').disabled = !ticket.allowed;
+}
+
+function renderTradeQueue() {
+  const container = $('#tradeQueue');
+  if (!container) return;
+  if (!paperTradeQueue.length) {
+    container.innerHTML = '<p class="empty-queue">No proposed paper trades yet.</p>';
+    return;
+  }
+  container.innerHTML = paperTradeQueue.map(ticket => '<article class="queue-card" data-ticket="' + ticket.id + '"><div><small>ORDER</small><b>' + ticket.action + ' ' + ticket.shares + ' ' + ticket.symbol + '</b></div><div><small>LIMIT</small><b>' + formatMoney(ticket.entry) + '</b></div><div><small>STOP</small><b>' + formatMoney(ticket.stop) + '</b></div><div><small>TARGET</small><b>' + formatMoney(ticket.target) + '</b></div><div><small>RISK</small><b>' + formatMoney(ticket.dollarsAtRisk) + '</b></div><div><small>STATUS</small><b class="queue-status">' + ticket.status + '</b></div><div class="queue-actions"><button class="place-ticket">' + (ticket.status === 'PLACED' ? 'Placed ✓' : 'Mark placed') + '</button><button class="remove-ticket">Remove</button></div></article>').join('');
+  $$('.place-ticket').forEach(button => button.addEventListener('click', () => {
+    const id = button.closest('[data-ticket]').dataset.ticket;
+    paperTradeQueue = paperTradeQueue.map(ticket => ticket.id === id ? { ...ticket, status: 'PLACED', placed: new Date().toISOString() } : ticket);
+    savePaperTrades();
+  }));
+  $$('.remove-ticket').forEach(button => button.addEventListener('click', () => {
+    const id = button.closest('[data-ticket]').dataset.ticket;
+    paperTradeQueue = paperTradeQueue.filter(ticket => ticket.id !== id);
+    savePaperTrades();
+  }));
+}
+
+function paperTicketText(ticket) {
+  return ['INVESTOPEDIA PAPER TRADE', ticket.action + ' ' + ticket.symbol, 'Order: ' + ticket.orderType, 'Shares: ' + ticket.shares, 'Limit: ' + formatMoney(ticket.entry), 'Protective stop: ' + formatMoney(ticket.stop), 'Profit objective: ' + formatMoney(ticket.target), 'Position value: ' + formatMoney(ticket.positionValue), 'Maximum dollars at risk: ' + formatMoney(ticket.dollarsAtRisk), 'Timing: ' + ticket.timing, 'Ensemble score: ' + ticket.score.toFixed(1) + '/100', 'Valuation score: ' + ticket.valuationScore.toFixed(1) + '/100', 'Reason: ' + ticket.reason].join('\n');
+}
+
+function exportPaperTrades() {
+  const quote = value => '"' + String(value ?? '').replaceAll('"', '""') + '"';
+  const header = 'created,placed,status,symbol,action,order_type,shares,entry_limit,stop,target,position_value,dollars_at_risk,ensemble_score,valuation_score,risk_level,reason';
+  const rows = paperTradeQueue.map(ticket => [ticket.created, ticket.placed, ticket.status, ticket.symbol, ticket.action, ticket.orderType, ticket.shares, ticket.entry, ticket.stop, ticket.target, ticket.positionValue, ticket.dollarsAtRisk, ticket.score, ticket.valuationScore, ticket.riskLevel, ticket.reason].map(quote).join(','));
+  const anchor = document.createElement('a');
+  anchor.href = URL.createObjectURL(new Blob([[header, ...rows].join('\n')], { type: 'text/csv' }));
+  anchor.download = 'investopedia-paper-trade-journal.csv';
+  anchor.click();
+  URL.revokeObjectURL(anchor.href);
+}
+
 if (typeof document !== 'undefined') {
   $('#searchForm').addEventListener('submit', event => { event.preventDefault(); scan($('#tickerInput').value); });
   $$('.strategy-button').forEach(button => button.addEventListener('click', () => { active = button.dataset.strategy; render(); }));
   $$('[data-open]').forEach(button => button.addEventListener('click', () => { active = button.dataset.open; render(); $('#scanner').scrollIntoView({ behavior: 'smooth' }); }));
   $('#downloadCsv').addEventListener('click', downloadCsv);
+  $('#queueTradeButton').addEventListener('click', () => {
+    if (!currentPaperTicket) return;
+    paperTradeQueue.unshift({ ...currentPaperTicket });
+    savePaperTrades();
+    $('#ticketStatus').textContent = 'Trade approved and added to your queue. It has not been sent to Investopedia.';
+  });
+  $('#copyTradeButton').addEventListener('click', async () => {
+    if (!currentPaperTicket) return;
+    try {
+      await navigator.clipboard.writeText(paperTicketText(currentPaperTicket));
+      $('#ticketStatus').textContent = 'Order details copied. Review them before entering the trade in Investopedia.';
+    } catch {
+      $('#ticketStatus').textContent = 'Copy is unavailable in this browser. Use the visible ticket details to enter the trade manually.';
+    }
+  });
+  $('#exportTradesButton').addEventListener('click', exportPaperTrades);
+  $('#virtualBalanceInput').value = localStorage.getItem('stocks-virtual-balance') || DEFAULT_VIRTUAL_BALANCE.toFixed(2);
+  $('#virtualBalanceInput').addEventListener('change', updateVirtualBalance);
+  updateVirtualBalance();
+  loadPaperTrades();
   scan('AAPL');
 }
 if (typeof module !== 'undefined') module.exports = { analyze, backtest, demoRows, baseIndicators };
