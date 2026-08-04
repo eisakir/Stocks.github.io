@@ -117,6 +117,16 @@ header > div > p { font-size: clamp(1rem, 1.3vw, 1.15rem); color: var(--muted-te
 .metrics { border-radius: var(--radius-sm); overflow: hidden; }
 .metrics div { min-height: 72px; }
 .metrics span, .workspace-head span, .reason small { font-size: .7rem; }
+.valuation-panel { margin-top: .85rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--gold-color) 7%, var(--surface-color)); }
+.valuation-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.valuation-head small { color: var(--gold-color); font-size: .62rem; font-weight: 850; letter-spacing: .1em; }
+.valuation-head h4 { margin: .25rem 0 0; font-size: .95rem; }
+.valuation-head > span { color: var(--muted-text-color); font-size: .65rem; font-weight: 750; text-align: right; }
+.valuation-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: .65rem; margin-top: .85rem; }
+.valuation-metrics > div { padding: .75rem; border: 1px solid var(--border-color); border-radius: 10px; background: var(--surface-color); }
+.valuation-metrics span, .valuation-metrics small { display: block; color: var(--muted-text-color); font-size: .6rem; }
+.valuation-metrics b { display: block; margin: .2rem 0; font-size: 1rem; }
+.valuation-panel > p { margin: .8rem 0 0; color: var(--muted-text-color); font-size: .75rem; line-height: 1.5; }
 .research-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; margin-top: .85rem; }
 .research-grid > div { min-width: 0; padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--surface-muted); }
 .research-grid small { display: block; color: var(--muted-text-color); font-size: .64rem; font-weight: 800; letter-spacing: .08em; }
@@ -136,7 +146,8 @@ header > div > p { font-size: clamp(1rem, 1.3vw, 1.15rem); color: var(--muted-te
 .loading i { animation: scan-pulse .8s ease-in-out infinite alternate; }
 @keyframes scan-pulse { to { transform: translateX(4px); opacity: .55; } }
 
-.guide-grid { max-width: var(--content); margin-inline: auto; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+.guide-grid { max-width: var(--content); display: flex; flex-wrap: wrap; justify-content: center; margin-inline: auto; gap: 1rem; }
+.guide-grid article { flex: 1 1 220px; max-width: 285px; }
 .guide-grid article { min-height: 340px; border-radius: var(--radius-md); border-color: var(--border-color); background: var(--surface-color); box-shadow: var(--shadow-sm); transition: transform .2s, box-shadow .2s; }
 .guide-grid article:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
 .guide-grid p { color: var(--muted-text-color); font-size: .94rem; }
@@ -213,7 +224,7 @@ dialog::backdrop { background: rgb(6 14 23 / .62); backdrop-filter: blur(5px); }
   nav:not(.bottom-nav) { padding-inline: 18px; }
   .jump-button span { display: none; }
   .install-panel { grid-template-columns: 1fr 1fr; }
-  .guide-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .guide-grid article { flex-basis: 280px; max-width: 360px; }
   .research-grid { grid-template-columns: repeat(2, 1fr); }
   .research-principles { grid-template-columns: 1fr; }
   .install-panel > div { grid-column: 1 / -1; }
@@ -239,8 +250,12 @@ dialog::backdrop { background: rgb(6 14 23 / .62); backdrop-filter: blur(5px); }
   .metrics { grid-template-columns: 1fr 1fr; }
   .metrics div { border-bottom: 1px solid var(--border-color); }
   .guide-grid article { min-height: 290px; }
-  .guide-grid { grid-template-columns: 1fr; }
+  .guide-grid { display: grid; grid-template-columns: 1fr; }
+  .guide-grid article { max-width: none; }
   .research-grid { grid-template-columns: 1fr 1fr; }
+  .valuation-metrics { grid-template-columns: 1fr 1fr; }
+  .valuation-head { flex-direction: column; }
+  .valuation-head > span { text-align: left; }
   .research-library { padding: 62px max(1rem, env(safe-area-inset-left)); }
   .paper-grid { grid-template-columns: 1fr; }
   .paper-grid article { min-height: 0; }
