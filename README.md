@@ -14,6 +14,7 @@ A responsive, explainable stock-strategy scanner published with GitHub Pages.
 - Five-part Quant Ensemble covering trend, SPY-relative strength, mean reversion, breakout quality, and risk
 - Market-context regimes with transparent strategy weights and evidence-quality scoring
 - Cost-aware next-session backtests with CAGR, Sharpe, Sortino, drawdown, exposure, profit factor, and SPY comparison
+- Permanent Research Library with plain-English paper summaries, direct sources, implementation notes, limitations, and a dated research log
 - Saved light/dark theme with system preference support
 - Accessible desktop navigation, mobile tab bar, and complete Jump to menu
 - Installable PWA shell with offline demo support and update-safe caching
