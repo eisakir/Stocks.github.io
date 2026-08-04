@@ -163,6 +163,47 @@ header > div > p { font-size: clamp(1rem, 1.3vw, 1.15rem); color: var(--muted-te
 th, td { background: var(--surface-color); color: var(--muted-text-color); padding: 1rem; }
 th { background: var(--surface-muted); color: var(--text-color); }
 .action-status { max-width: var(--content); min-height: 1.5rem; margin: -.7rem auto .7rem; color: var(--success-color); font-size: .82rem; font-weight: 700; }
+.paper-trades { padding: 88px max(clamp(18px, 6vw, 90px), env(safe-area-inset-left)); background: var(--background-color); border-top: 1px solid var(--border-color); }
+.manual-badge { padding: .55rem .75rem; border: 1px solid color-mix(in srgb, var(--gold-color) 55%, var(--border-color)); border-radius: 999px; background: color-mix(in srgb, var(--gold-color) 12%, transparent); color: var(--gold-color); font-size: .65rem; font-weight: 850; letter-spacing: .08em; }
+.paper-rules { max-width: var(--content); display: grid; grid-template-columns: repeat(4, 1fr); margin: 0 auto 1rem; overflow: hidden; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--surface-color); }
+.paper-rules > div { padding: 1rem; border-right: 1px solid var(--border-color); }
+.paper-rules > div:last-child { border: 0; }
+.paper-rules small { display: block; color: var(--muted-text-color); font-size: .62rem; font-weight: 800; letter-spacing: .08em; }
+.paper-rules label { display: block; color: var(--muted-text-color); font-size: .62rem; font-weight: 800; letter-spacing: .08em; }
+.paper-rules b { display: block; margin-top: .25rem; }
+.paper-rules input { width: 100%; min-height: 44px; margin-top: .25rem; padding: .55rem .7rem; border: 1px solid var(--border-color); border-radius: 10px; background: var(--surface-muted); color: var(--text-color); font: inherit; font-weight: 750; }
+.ticket-layout { max-width: var(--content); display: grid; grid-template-columns: 1.5fr .8fr; gap: 1rem; margin: 0 auto; }
+.trade-ticket, .investopedia-steps { padding: 1.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-lg); background: var(--surface-color); box-shadow: var(--shadow-sm); }
+.ticket-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.ticket-head span, .investopedia-steps > span, .queue-head span { color: var(--success-color); font-size: .65rem; font-weight: 850; letter-spacing: .1em; }
+.ticket-head h3, .investopedia-steps h3, .queue-head h3 { margin: .3rem 0 0; font: 1.4rem ui-serif, Georgia, serif; }
+.ticket-head em { padding: .4rem .65rem; border-radius: 8px; background: var(--surface-muted); font-size: .72rem; font-style: normal; font-weight: 850; }
+.ticket-gate { margin: 1rem 0; padding: .8rem; border-radius: 10px; background: var(--surface-muted); color: var(--muted-text-color); font-size: .78rem; }
+.trade-ticket dl { display: grid; grid-template-columns: repeat(2, 1fr); margin: 0; border: 1px solid var(--border-color); border-radius: var(--radius-sm); overflow: hidden; }
+.trade-ticket dl > div { padding: .8rem; border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); }
+.trade-ticket dt { color: var(--muted-text-color); font-size: .65rem; }
+.trade-ticket dd { margin: .2rem 0 0; font-weight: 800; }
+.trade-ticket > p { color: var(--muted-text-color); font-size: .8rem; line-height: 1.55; }
+.ticket-actions { display: flex; gap: .7rem; }
+.ticket-actions button, .queue-head button, .queue-card button { min-height: 44px; padding: 0 1rem; border: 0; border-radius: 12px; background: var(--nav-color); color: #fff; font-weight: 750; }
+.ticket-actions .secondary-button { background: transparent; color: var(--text-color); border: 1px solid var(--border-color); }
+.ticket-actions button:disabled { opacity: .48; cursor: not-allowed; }
+#ticketStatus { min-height: 1.5rem; margin-top: .6rem; color: var(--success-color); font-size: .75rem; font-weight: 700; }
+.investopedia-steps ol { padding-left: 1.2rem; color: var(--muted-text-color); font-size: .82rem; line-height: 1.55; }
+.investopedia-steps li { padding: .3rem 0; }
+.investopedia-steps p { padding: .8rem; border-radius: 10px; background: color-mix(in srgb, var(--gold-color) 12%, transparent); color: var(--muted-text-color); font-size: .76rem; }
+.investopedia-steps a { min-height: 44px; display: flex; align-items: center; color: var(--accent-color); font-size: .78rem; font-weight: 850; }
+.queue-head { max-width: var(--content); display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin: 2rem auto 1rem; }
+.queue-head button { background: var(--surface-color); color: var(--text-color); border: 1px solid var(--border-color); }
+.trade-queue { max-width: var(--content); display: grid; gap: .75rem; margin: 0 auto; }
+.empty-queue { padding: 2rem; border: 1px dashed var(--border-color); border-radius: var(--radius-md); color: var(--muted-text-color); text-align: center; }
+.queue-card { display: grid; grid-template-columns: 1.2fr repeat(5, minmax(80px, .7fr)) auto; align-items: center; gap: .8rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--surface-color); }
+.queue-card small { display: block; color: var(--muted-text-color); font-size: .58rem; }
+.queue-card b { font-size: .8rem; }
+.queue-card .queue-status { color: var(--gold-color); }
+.queue-actions { display: flex; gap: .4rem; }
+.queue-actions button { padding: 0 .7rem; font-size: .7rem; }
+.queue-actions .remove-ticket { background: transparent; color: var(--danger-color); border: 1px solid var(--border-color); }
 .research-library { padding: 88px max(clamp(18px, 6vw, 90px), env(safe-area-inset-left)); background: var(--surface-muted); border-top: 1px solid var(--border-color); }
 .research-skip { min-height: 44px; display: inline-flex; align-items: center; padding: 0 1rem; border: 1px solid var(--border-color); border-radius: 14px; background: var(--surface-color); color: var(--accent-color); font-size: .78rem; font-weight: 800; }
 .research-principles { max-width: var(--content); display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 0 auto 1rem; }
@@ -227,6 +268,9 @@ dialog::backdrop { background: rgb(6 14 23 / .62); backdrop-filter: blur(5px); }
   .guide-grid article { flex-basis: 280px; max-width: 360px; }
   .research-grid { grid-template-columns: repeat(2, 1fr); }
   .research-principles { grid-template-columns: 1fr; }
+  .ticket-layout { grid-template-columns: 1fr; }
+  .queue-card { grid-template-columns: repeat(3, 1fr); }
+  .queue-card > div:first-child, .queue-actions { grid-column: 1 / -1; }
   .install-panel > div { grid-column: 1 / -1; }
 }
 @media (max-width: 700px) {
@@ -256,6 +300,13 @@ dialog::backdrop { background: rgb(6 14 23 / .62); backdrop-filter: blur(5px); }
   .valuation-metrics { grid-template-columns: 1fr 1fr; }
   .valuation-head { flex-direction: column; }
   .valuation-head > span { text-align: left; }
+  .paper-trades { padding: 62px max(1rem, env(safe-area-inset-left)); }
+  .paper-rules { grid-template-columns: 1fr 1fr; }
+  .paper-rules > div { border-bottom: 1px solid var(--border-color); }
+  .trade-ticket dl { grid-template-columns: 1fr 1fr; }
+  .ticket-actions { flex-direction: column; }
+  .ticket-actions button { width: 100%; }
+  .queue-card { grid-template-columns: 1fr 1fr; }
   .research-library { padding: 62px max(1rem, env(safe-area-inset-left)); }
   .paper-grid { grid-template-columns: 1fr; }
   .paper-grid article { min-height: 0; }
