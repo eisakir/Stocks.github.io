@@ -1,1 +1,1 @@
-# Stocks.github.io
+# Stock Strategy Lab
