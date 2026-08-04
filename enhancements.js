@@ -59,7 +59,7 @@
       link.classList.toggle('active', active);
       if (active) link.setAttribute('aria-current', 'location'); else link.removeAttribute('aria-current');
     });
-    const names = { top: 'Overview', scanner: 'Scanner', guide: 'Strategies', backtest: 'Backtest', log: 'Decision Log', research: 'Research Library' };
+    const names = { top: 'Overview', scanner: 'Scanner', guide: 'Strategies', backtest: 'Backtest', log: 'Decision Log', paperTrades: 'Investopedia Paper Trades', research: 'Research Library' };
     document.title = `${names[id] || 'Stock Strategy Lab'} · Stocks`;
   }, { rootMargin: '-18% 0px -64% 0px', threshold: [0, .2, .5] });
   sections.forEach(section => observer.observe(section));
