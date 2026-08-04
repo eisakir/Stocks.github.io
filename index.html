@@ -55,7 +55,8 @@
           <div class="quote"><span id="ticker">AAPL</span><strong id="price">—</strong><small id="asOf">Loading…</small></div>
           <div class="regime-card"><small>DETECTED REGIME</small><b id="regime">—</b><p id="regimeText">Calculating current market structure.</p></div>
           <label>STRATEGIES</label>
-          <button class="strategy-button active" data-strategy="trend" aria-pressed="true"><span><b>Trend Confirmation</b><small>20 / 50 / 200-day averages</small></span><em>—</em></button>
+          <button class="strategy-button active" data-strategy="ensemble" aria-pressed="true"><span><b>Quant Ensemble</b><small>Five independent evidence groups</small></span><em>—</em></button>
+          <button class="strategy-button" data-strategy="trend" aria-pressed="false"><span><b>Trend Confirmation</b><small>Multi-horizon trend + momentum</small></span><em>—</em></button>
           <button class="strategy-button" data-strategy="mean" aria-pressed="false"><span><b>Bollinger + RSI Reversal</b><small>Range-market mean reversion</small></span><em>—</em></button>
           <button class="strategy-button" data-strategy="atr" aria-pressed="false"><span><b>ATR Breakout</b><small>Volatility + volume confirmation</small></span><em>—</em></button>
         </aside>
@@ -64,6 +65,8 @@
           <div class="chart-wrap"><canvas id="priceChart" role="img" aria-label="Price and indicator chart"></canvas></div>
           <div class="reason"><i>✓</i><div><small>DECISION REASON</small><p id="reasonText">Calculating signal evidence…</p></div></div>
           <div id="metrics" class="metrics"></div>
+          <div class="research-grid"><div><small>ENSEMBLE SCORE</small><strong id="ensembleScore">—</strong><span id="scoreLabel">Waiting for evidence</span></div><div><small>RISK LEVEL</small><strong id="riskLevel">—</strong><span id="riskReason">Volatility and drawdown</span></div><div><small>INVALIDATION LEVEL</small><strong id="invalidation">—</strong><span>Evidence weakens below this level</span></div><div><small>DATA QUALITY</small><strong id="dataQuality">—</strong><span id="qualityReason">History and signal agreement</span></div></div>
+          <div class="score-breakdown" aria-labelledby="breakdownTitle"><div class="score-head"><h4 id="breakdownTitle">Evidence breakdown</h4><span>0–100, not a probability</span></div><div id="scoreBars"></div></div>
         </article>
       </div>
     </section>
@@ -71,15 +74,16 @@
     <section id="guide" class="guide">
       <div class="section-title pale"><div><span>02 · STRATEGY GUIDE</span><h2>One market, three lenses</h2><p>The scanner identifies context before interpreting any signal.</p></div></div>
       <div class="guide-grid">
-        <article><span>01</span><h3>Trend Confirmation</h3><p>Looks for a 20/50-day crossover and confirms it against the 200-day trend. This reduces false calls from small price wiggles.</p><button data-open="trend">Open strategy ↗</button></article>
-        <article><span>02</span><h3>Bollinger + RSI Reversal</h3><p>Waits for price to leave and then re-enter a Bollinger Band while RSI confirms exhaustion. It does not buy every low RSI reading.</p><button data-open="mean">Open strategy ↗</button></article>
-        <article><span>03</span><h3>ATR Breakout</h3><p>Uses prior support or resistance, an ATR buffer, and volume confirmation. Today's bar is excluded from the breakout threshold.</p><button data-open="atr">Open strategy ↗</button></article>
+        <article><span>01</span><h3>Quant Ensemble</h3><p>Combines trend, relative strength, mean reversion, breakout quality, and risk. Conflicting evidence lowers confidence instead of forcing a trade.</p><button data-open="ensemble">Open strategy ↗</button></article>
+        <article><span>02</span><h3>Trend Confirmation</h3><p>Uses moving-average structure, slopes, and 3-, 6-, and 12-month momentum. SPY-relative performance prevents confusing a broad rally with stock-specific strength.</p><button data-open="trend">Open strategy ↗</button></article>
+        <article><span>03</span><h3>Bollinger + RSI Reversal</h3><p>Requires band re-entry and exhaustion, then blocks bullish reversals during severe long-term downtrends.</p><button data-open="mean">Open strategy ↗</button></article>
+        <article><span>04</span><h3>ATR Breakout</h3><p>Uses prior support or resistance, an ATR buffer, close location, and abnormal volume. Today's bar remains excluded from its threshold.</p><button data-open="atr">Open strategy ↗</button></article>
       </div>
       <div class="process"><span><b>1</b>Classify regime<small>Trend · range · volatile</small></span><i>→</i><span><b>2</b>Calculate indicators<small>Past data only</small></span><i>→</i><span><b>3</b>Confirm signal<small>Price · trend · volume</small></span><i>→</i><span><b>4</b>Record reason<small>Decision stays auditable</small></span></div>
     </section>
 
     <section id="backtest" class="backtest">
-      <div><span class="eyebrow">03 · CORRECTED BACKTEST</span><h2>Strategy versus simply holding</h2><p>Signals are calculated at the close and executed at the <strong>next session's open</strong>, preventing look-ahead. Returns compound across completed trades. Open positions are marked to market.</p><div class="stats"><div><small>STRATEGY RETURN</small><b id="strategyReturn">—</b></div><div><small>BUY & HOLD</small><b id="holdReturn">—</b></div><div><small>TRADES</small><b id="trades">—</b></div><div><small>WIN RATE</small><b id="winRate">—</b></div><div><small>MAX DRAWDOWN</small><b id="drawdown">—</b></div><div><small>DATA POINTS</small><b id="points">—</b></div></div></div>
+      <div><span class="eyebrow">03 · COST-AWARE BACKTEST</span><h2>Strategy versus holding and SPY</h2><p>Signals are calculated at the close and executed at the <strong>next session's open</strong>. Returns compound after estimated trading costs. Open positions are marked to market.</p><div class="stats"><div><small>NET RETURN</small><b id="strategyReturn">—</b></div><div><small>BUY & HOLD</small><b id="holdReturn">—</b></div><div><small>CAGR</small><b id="cagr">—</b></div><div><small>SHARPE</small><b id="sharpe">—</b></div><div><small>SORTINO</small><b id="sortino">—</b></div><div><small>MAX DRAWDOWN</small><b id="drawdown">—</b></div><div><small>TRADES</small><b id="trades">—</b></div><div><small>WIN RATE</small><b id="winRate">—</b></div><div><small>EXPOSURE</small><b id="exposure">—</b></div><div><small>PROFIT FACTOR</small><b id="profitFactor">—</b></div><div><small>SPY RETURN</small><b id="spyReturn">—</b></div><div><small>DATA POINTS</small><b id="points">—</b></div></div><div id="sampleWarning" class="sample-warning" role="status"></div></div>
       <div class="curve-card"><canvas id="equityChart" role="img" aria-label="Backtest equity curve comparing the selected strategy with buy and hold"></canvas><small>Educational illustration. Excludes fees, taxes, slippage, dividends, and survivorship bias. Past performance does not predict future results.</small></div>
     </section>
 
