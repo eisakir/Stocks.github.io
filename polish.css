@@ -172,6 +172,29 @@ th { background: var(--surface-muted); color: var(--text-color); }
 .paper-rules label { display: block; color: var(--muted-text-color); font-size: .62rem; font-weight: 800; letter-spacing: .08em; }
 .paper-rules b { display: block; margin-top: .25rem; }
 .paper-rules input { width: 100%; min-height: 44px; margin-top: .25rem; padding: .55rem .7rem; border: 1px solid var(--border-color); border-radius: 10px; background: var(--surface-muted); color: var(--text-color); font: inherit; font-weight: 750; }
+
+.universe-screener { max-width: var(--content); margin: 0 auto 1.25rem; padding: 1.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-lg); background: var(--surface-color); box-shadow: var(--shadow-sm); }
+.universe-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; }
+.universe-head span { color: var(--success-color); font-size: .65rem; font-weight: 850; letter-spacing: .1em; }
+.universe-head h3 { margin: .3rem 0; font: 1.55rem ui-serif, Georgia, serif; }
+.universe-head p { max-width: 70ch; margin: 0; color: var(--muted-text-color); font-size: .82rem; line-height: 1.55; }
+.universe-head button, .add-candidate { min-height: 44px; padding: 0 1rem; border: 0; border-radius: 12px; background: var(--nav-color); color: #fff; font-weight: 800; white-space: nowrap; }
+.universe-head button:disabled, .add-candidate:disabled { opacity: .55; }
+.universe-controls { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: .75rem; margin: 1.25rem 0; }
+.universe-controls label, .universe-controls > div { padding: .75rem; border: 1px solid var(--border-color); border-radius: 12px; color: var(--muted-text-color); font-size: .68rem; font-weight: 800; }
+.universe-controls select { width: 100%; min-height: 44px; margin-top: .35rem; padding: 0 .6rem; border: 1px solid var(--border-color); border-radius: 9px; background: var(--surface-muted); color: var(--text-color); font: inherit; }
+.universe-controls small, .universe-controls b { display: block; }
+.universe-controls b { margin-top: .55rem; color: var(--text-color); font-size: .78rem; }
+.universe-progress > div { height: 8px; overflow: hidden; border-radius: 999px; background: var(--surface-muted); }
+.universe-progress i { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--success-color); transition: width .2s ease; }
+.universe-progress span { display: block; min-height: 1.3rem; margin-top: .45rem; color: var(--muted-text-color); font-size: .75rem; }
+.universe-results { display: grid; gap: .65rem; margin-top: .75rem; }
+.universe-summary { margin: 0; padding: .75rem; border-radius: 10px; background: var(--surface-muted); color: var(--muted-text-color); font-size: .76rem; }
+.candidate-card { display: grid; grid-template-columns: 52px repeat(6, minmax(82px, 1fr)) auto; align-items: center; gap: .7rem; padding: .9rem; border: 1px solid var(--border-color); border-radius: 14px; background: var(--background-color); }
+.candidate-card small { display: block; color: var(--muted-text-color); font-size: .56rem; }
+.candidate-card b { font-size: .76rem; }
+.candidate-rank b { color: var(--gold-color); font-size: 1.2rem; }
+.candidate-card p { grid-column: 2 / -1; margin: 0; color: var(--muted-text-color); font-size: .7rem; line-height: 1.45; }
 .ticket-layout { max-width: var(--content); display: grid; grid-template-columns: 1.5fr .8fr; gap: 1rem; margin: 0 auto; }
 .trade-ticket, .investopedia-steps { padding: 1.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-lg); background: var(--surface-color); box-shadow: var(--shadow-sm); }
 .ticket-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
@@ -269,6 +292,8 @@ dialog::backdrop { background: rgb(6 14 23 / .62); backdrop-filter: blur(5px); }
   .research-grid { grid-template-columns: repeat(2, 1fr); }
   .research-principles { grid-template-columns: 1fr; }
   .ticket-layout { grid-template-columns: 1fr; }
+  .candidate-card { grid-template-columns: repeat(3, 1fr); }
+  .candidate-card p, .candidate-card .add-candidate { grid-column: 1 / -1; }
   .queue-card { grid-template-columns: repeat(3, 1fr); }
   .queue-card > div:first-child, .queue-actions { grid-column: 1 / -1; }
   .install-panel > div { grid-column: 1 / -1; }
@@ -302,6 +327,11 @@ dialog::backdrop { background: rgb(6 14 23 / .62); backdrop-filter: blur(5px); }
   .valuation-head > span { text-align: left; }
   .paper-trades { padding: 62px max(1rem, env(safe-area-inset-left)); }
   .paper-rules { grid-template-columns: 1fr 1fr; }
+  .universe-head { flex-direction: column; }
+  .universe-head button { width: 100%; }
+  .universe-controls { grid-template-columns: 1fr; }
+  .candidate-card { grid-template-columns: 1fr 1fr; }
+  .candidate-card p, .candidate-card .add-candidate { grid-column: 1 / -1; }
   .paper-rules > div { border-bottom: 1px solid var(--border-color); }
   .trade-ticket dl { grid-template-columns: 1fr 1fr; }
   .ticket-actions { flex-direction: column; }
