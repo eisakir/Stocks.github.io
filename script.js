@@ -13,6 +13,20 @@ let equityChart = null;
 let currentPaperTicket = null;
 let paperTradeQueue = [];
 const DEFAULT_VIRTUAL_BALANCE = 148264.79;
+const LARGE_CAP_UNIVERSE = [
+  'AAPL','MSFT','NVDA','AMZN','GOOGL','META','BRK-B','AVGO','TSLA','LLY',
+  'JPM','WMT','V','ORCL','MA','XOM','COST','NFLX','UNH','HD',
+  'PG','JNJ','ABBV','BAC','KO','CRM','PM','CVX','CSCO','IBM',
+  'WFC','GE','ABT','MCD','NOW','CAT','AXP','GS','MRK','TMO',
+  'ISRG','PEP','ACN','QCOM','DIS','AMD','TXN','INTU','AMGN','RTX',
+  'BKNG','SPGI','PGR','AMAT','HON','NEE','LOW','DHR','PFE','UNP',
+  'BLK','ETN','C','TJX','VRTX','SYK','BSX','COP','LRCX','ADP',
+  'PANW','CB','SCHW','GILD','MMC','ADI','MDT','DE','SBUX','AMT',
+  'PLD','BMY','BA','MO','SO','CI','KLAC','ICE','SHW','DUK',
+  'CME','ZTS','MCK','CVS','USB','MDLZ','ORLY','APO','WM','EOG'
+];
+let universeRecommendations = [];
+let universeScanRunning = false;
 
 const average = values => values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
 const deviation = values => {
@@ -570,6 +584,112 @@ function buildPaperTicket() {
   };
 }
 
+
+function candidateTicket(symbol, candidateAnalysis, virtualBalance) {
+  if (!candidateAnalysis.valuationAvailable || candidateAnalysis.fundamentals?.source !== 'LIVE FUNDAMENTALS') return null;
+  if (candidateAnalysis.ensembleSignal !== 'BUY' || candidateAnalysis.ensembleScore < 68 || candidateAnalysis.riskLevel === 'HIGH') return null;
+  const entry = candidateAnalysis.latest.close;
+  const stop = Math.min(candidateAnalysis.invalidation, entry - candidateAnalysis.atr14 * .75);
+  const riskPerShare = entry - stop;
+  if (!(riskPerShare > 0)) return null;
+  const shares = Math.max(0, Math.min(Math.floor((virtualBalance * .01) / riskPerShare), Math.floor((virtualBalance * .10) / entry)));
+  if (shares < 1) return null;
+  return {
+    allowed: true, id: Date.now().toString(36) + '-' + symbol.toLowerCase(), created: new Date().toISOString(),
+    symbol, action: 'BUY', orderType: 'LIMIT BUY', entry, shares, positionValue: entry * shares, stop,
+    target: entry + riskPerShare * 2, dollarsAtRisk: riskPerShare * shares,
+    timing: 'Place only at or below the limit after rescanning the symbol and confirming the ensemble still reads BUY.',
+    score: candidateAnalysis.ensembleScore, valuationScore: candidateAnalysis.valuationScore,
+    riskLevel: candidateAnalysis.riskLevel, reason: candidateAnalysis.strategies.ensemble.reason,
+    status: 'APPROVED', scannedAt: new Date().toISOString()
+  };
+}
+function setUniverseProgress(done, total, message) {
+  const progress = $('#universeProgress');
+  if (!progress) return;
+  progress.querySelector('i').style.width = (total ? Math.round(done / total * 100) : 0) + '%';
+  progress.querySelector('span').textContent = message;
+}
+function renderUniverseResults(summary = '') {
+  const container = $('#universeResults');
+  if (!container) return;
+  if (!universeRecommendations.length) {
+    container.innerHTML = '<p class="empty-queue">' + (summary || 'No stocks passed every trade gate.') + '</p>';
+    return;
+  }
+  container.innerHTML = (summary ? '<p class="universe-summary">' + summary + '</p>' : '') + universeRecommendations.map((ticket, index) =>
+    '<article class="candidate-card" data-candidate="' + ticket.symbol + '">' +
+      '<div class="candidate-rank"><small>RANK</small><b>' + (index + 1) + '</b></div>' +
+      '<div><small>SYMBOL</small><b>' + ticket.symbol + '</b></div>' +
+      '<div><small>ENSEMBLE</small><b>' + ticket.score.toFixed(0) + '/100</b></div>' +
+      '<div><small>VALUATION</small><b>' + ticket.valuationScore.toFixed(0) + '/100</b></div>' +
+      '<div><small>BUY</small><b>' + ticket.shares + ' shares</b></div>' +
+      '<div><small>POSITION</small><b>' + formatMoney(ticket.positionValue) + '</b></div>' +
+      '<div><small>LIMIT / STOP</small><b>' + formatMoney(ticket.entry) + ' / ' + formatMoney(ticket.stop) + '</b></div>' +
+      '<button class="add-candidate" type="button">Add to queue</button>' +
+      '<p>' + ticket.reason + '</p></article>'
+  ).join('');
+  $('.add-candidate').forEach(button => button.addEventListener('click', () => {
+    const symbol = button.closest('[data-candidate]').dataset.candidate;
+    const ticket = universeRecommendations.find(item => item.symbol === symbol);
+    if (!ticket) return;
+    if (paperTradeQueue.some(item => item.symbol === symbol && ['APPROVED', 'PLACED'].includes(item.status))) {
+      button.textContent = 'Already queued'; button.disabled = true; return;
+    }
+    paperTradeQueue.unshift({ ...ticket, id: Date.now().toString(36) + '-' + symbol.toLowerCase() });
+    savePaperTrades(); button.textContent = 'Added ✓'; button.disabled = true;
+  }));
+}
+async function runUniverseScan() {
+  if (universeScanRunning) return;
+  universeScanRunning = true;
+  const button = $('#runUniverseScan');
+  button.disabled = true; button.textContent = 'Scanning…';
+  universeRecommendations = []; renderUniverseResults('The live scan is starting…');
+  const size = $('#universeSelect').value === 'core50' ? 50 : 100;
+  const symbols = LARGE_CAP_UNIVERSE.slice(0, size);
+  const maxResults = Number($('#maxRecommendations').value) || 5;
+  const virtualBalance = getVirtualBalance();
+  let marketData, completed = 0, live = 0, failed = 0, qualified = 0;
+  try { marketData = await fetchMarket('SPY'); }
+  catch {
+    setUniverseProgress(0, symbols.length, 'Scan stopped: live SPY market context could not be loaded. Try again later.');
+    renderUniverseResults('No recommendations were produced because the required live SPY benchmark was unavailable.');
+    button.disabled = false; button.textContent = 'Scan ' + size + ' stocks'; universeScanRunning = false; return;
+  }
+  const candidates = [];
+  for (let start = 0; start < symbols.length; start += 4) {
+    const batch = symbols.slice(start, start + 4);
+    const results = await Promise.all(batch.map(async symbol => {
+      try {
+        const [stockData, fundamentalData] = await Promise.all([fetchMarket(symbol), fetchFundamentals(symbol)]);
+        const ageDays = (Date.now() - new Date(stockData.at(-1).date + 'T23:59:59Z').getTime()) / 86400000;
+        if (ageDays > 7) throw new Error('stale quote');
+        const candidateAnalysis = analyze(stockData, marketData, fundamentalData);
+        live++;
+        const ticket = candidateTicket(symbol, candidateAnalysis, virtualBalance);
+        if (ticket) qualified++;
+        return ticket;
+      } catch { failed++; return null; }
+      finally {
+        completed++;
+        setUniverseProgress(completed, symbols.length, 'Scanned ' + completed + ' of ' + symbols.length + ' · ' + qualified + ' passed all gates');
+      }
+    }));
+    candidates.push(...results.filter(Boolean));
+    if (start + 4 < symbols.length) await new Promise(resolve => setTimeout(resolve, 650));
+  }
+  const queued = new Set(paperTradeQueue.filter(item => ['APPROVED', 'PLACED'].includes(item.status)).map(item => item.symbol));
+  const deploymentCap = virtualBalance * .50;
+  let deployed = 0;
+  universeRecommendations = candidates.filter(ticket => !queued.has(ticket.symbol))
+    .sort((a, b) => b.score - a.score || b.valuationScore - a.valuationScore)
+    .filter(ticket => { if (deployed + ticket.positionValue > deploymentCap) return false; deployed += ticket.positionValue; return true; })
+    .slice(0, maxResults);
+  const summary = 'Live coverage: ' + live + '/' + symbols.length + '. ' + failed + ' failed or incomplete. ' + qualified + ' passed every gate; showing ' + universeRecommendations.length + ' portfolio-sized recommendation' + (universeRecommendations.length === 1 ? '' : 's') + '.';
+  setUniverseProgress(symbols.length, symbols.length, summary); renderUniverseResults(summary);
+  button.disabled = false; button.textContent = 'Scan ' + size + ' stocks'; universeScanRunning = false;
+}
 function renderPaperTicket() {
   if (!$('#ticketSymbol')) return;
   const ticket = buildPaperTicket();
@@ -646,6 +766,11 @@ if (typeof document !== 'undefined') {
     }
   });
   $('#exportTradesButton').addEventListener('click', exportPaperTrades);
+  $('#runUniverseScan').addEventListener('click', runUniverseScan);
+  $('#universeSelect').addEventListener('change', () => {
+    const count = $('#universeSelect').value === 'core50' ? 50 : 100;
+    $('#runUniverseScan').textContent = 'Scan ' + count + ' stocks';
+  });
   $('#virtualBalanceInput').value = localStorage.getItem('stocks-virtual-balance') || DEFAULT_VIRTUAL_BALANCE.toFixed(2);
   $('#virtualBalanceInput').addEventListener('change', updateVirtualBalance);
   updateVirtualBalance();
