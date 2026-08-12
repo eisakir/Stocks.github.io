@@ -356,25 +356,40 @@ async function scan(symbol) {
   button.querySelector('span').textContent = 'Scanning';
   let message = '';
   try {
-    const [stockResult, spyResult, fundamentalResult] = await Promise.allSettled([fetchMarket(clean), fetchMarket('SPY'), fetchFundamentals(clean)]);
-    if (stockResult.status === 'rejected') throw stockResult.reason;
-    rows = stockResult.value;
-    if (spyResult.status === 'fulfilled') {
-      benchmarkRows = spyResult.value;
-      message = `Live market and SPY benchmark data loaded for ${clean}. Quotes may be delayed.`;
-    } else {
-      benchmarkRows = rows.map(row => ({ ...row }));
-      message = `Live ${clean} data loaded. SPY was unavailable, so relative-strength inputs are neutralized.`;
+    let snapshotLoaded = false;
+    if (LARGE_CAP_UNIVERSE.includes(clean) || clean === 'SPY') {
+      try {
+        const snapshot = await loadUniverseSnapshot();
+        const item = clean === 'SPY' ? { rows: snapshot.spy, fundamentals: null } : snapshot.stocks[clean];
+        if (item?.rows?.length >= 253) {
+          rows = item.rows;
+          benchmarkRows = snapshot.spy;
+          fundamentals = item.fundamentals ? { ...item.fundamentals, source: 'LIVE FUNDAMENTALS' } : null;
+          source = 'LIVE';
+          snapshotLoaded = true;
+          message = 'Verified daily market snapshot loaded for ' + clean + '. Data generated ' + new Date(snapshot.generatedAt).toLocaleString() + '.';
+          if (!fundamentals && clean !== 'SPY') message += ' Fundamental ratios were unavailable and are excluded from the score.';
+        }
+      } catch { /* Try the direct source before using the demo fallback. */ }
     }
-    source = 'LIVE';
-    fundamentals = fundamentalResult.status === 'fulfilled' ? fundamentalResult.value : null;
-    if (!fundamentals) message += ' Fundamental ratios were unavailable and are excluded from the score.';
+    if (!snapshotLoaded) {
+      const [stockResult, spyResult, fundamentalResult] = await Promise.allSettled([fetchMarket(clean), fetchMarket('SPY'), fetchFundamentals(clean)]);
+      if (stockResult.status === 'rejected') throw stockResult.reason;
+      rows = stockResult.value;
+      benchmarkRows = spyResult.status === 'fulfilled' ? spyResult.value : rows.map(row => ({ ...row }));
+      fundamentals = fundamentalResult.status === 'fulfilled' ? fundamentalResult.value : null;
+      source = 'LIVE';
+      message = spyResult.status === 'fulfilled'
+        ? 'Live market and SPY benchmark data loaded for ' + clean + '. Quotes may be delayed.'
+        : 'Live ' + clean + ' data loaded. SPY was unavailable, so relative-strength inputs are neutralized.';
+      if (!fundamentals) message += ' Fundamental ratios were unavailable and are excluded from the score.';
+    }
   } catch (error) {
     rows = demoRows(clean);
     benchmarkRows = demoRows('SPY');
     source = 'DEMO';
     fundamentals = demoFundamentals(clean);
-    message = `Live data unavailable (${error.message}). Showing clearly labeled simulated data—do not use it for trading decisions.`;
+    message = 'Live and verified snapshot data unavailable (' + error.message + '). Showing clearly labeled simulated data—do not use it for trading decisions.';
   }
   try {
     ticker = clean;
