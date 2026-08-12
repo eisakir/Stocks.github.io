@@ -21,7 +21,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
       - run: pip install "yfinance==0.2.65"
       - run: python scripts/refresh_market_data.py
       - name: Commit refreshed snapshot
