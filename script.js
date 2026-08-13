@@ -751,37 +751,64 @@ async function runUniverseScan() {
   const queued = new Set(activeTickets.map(item => item.symbol));
   const deploymentCap = virtualBalance * .40;
   const sectorCap = virtualBalance * .18;
+  const knownSector = value => {
+    const sector = String(value || '').trim();
+    return sector && !['unknown', 'unclassified', 'n/a', 'none'].includes(sector.toLowerCase()) ? sector : null;
+  };
+  const sectorKey = ticket => knownSector(ticket.sector) || 'UNCLASSIFIED:' + ticket.symbol;
   let deployed = 0;
   const sectorExposure = {};
   const sectorCount = {};
   activeTickets.forEach(item => {
-    const sector = item.sector || 'Unknown';
+    const sector = knownSector(item.sector);
+    if (!sector) return;
     sectorExposure[sector] = (sectorExposure[sector] || 0) + (item.positionValue || 0);
     sectorCount[sector] = (sectorCount[sector] || 0) + 1;
   });
+  const eligible = candidates.filter(ticket => !queued.has(ticket.symbol))
+    .sort((a, b) => b.score - a.score || b.valuationScore - a.valuationScore);
+  const excluded = { queued: candidates.length - eligible.length, sector: 0, capacity: 0, size: 0 };
   universeRecommendations = [];
-  candidates.filter(ticket => !queued.has(ticket.symbol))
-    .sort((a, b) => b.score - a.score || b.valuationScore - a.valuationScore)
-    .some(ticket => {
-      const sector = ticket.sector || 'Unknown';
-      if ((sectorCount[sector] || 0) >= 2) return false;
-      const remainingSector = Math.max(0, sectorCap - (sectorExposure[sector] || 0));
-      const remainingPortfolio = Math.max(0, deploymentCap - deployed);
-      const affordableValue = Math.min(ticket.positionValue, remainingSector, remainingPortfolio);
-      const resizedShares = Math.floor(affordableValue / ticket.entry);
-      if (resizedShares < 1) return false;
-      ticket.shares = resizedShares;
-      ticket.positionValue = resizedShares * ticket.entry;
-      ticket.dollarsAtRisk = (ticket.entry - ticket.stop) * resizedShares;
-      ticket.allocationPct = ticket.positionValue / virtualBalance * 100;
-      universeRecommendations.push(ticket);
-      deployed += ticket.positionValue;
+  for (const ticket of eligible) {
+    if (universeRecommendations.length >= maxResults || deployed >= deploymentCap) break;
+    const sector = sectorKey(ticket);
+    const isClassified = !sector.startsWith('UNCLASSIFIED:');
+    if (isClassified && (sectorCount[sector] || 0) >= 2) {
+      excluded.sector++;
+      continue;
+    }
+    const remainingSector = isClassified ? Math.max(0, sectorCap - (sectorExposure[sector] || 0)) : ticket.positionValue;
+    const remainingPortfolio = Math.max(0, deploymentCap - deployed);
+    const affordableValue = Math.min(ticket.positionValue, remainingSector, remainingPortfolio);
+    const resizedShares = Math.floor(affordableValue / ticket.entry);
+    if (remainingPortfolio < ticket.entry) {
+      excluded.capacity++;
+      continue;
+    }
+    if (resizedShares < 1) {
+      excluded.size++;
+      continue;
+    }
+    ticket.sector = knownSector(ticket.sector) || 'Unclassified';
+    ticket.shares = resizedShares;
+    ticket.positionValue = resizedShares * ticket.entry;
+    ticket.dollarsAtRisk = (ticket.entry - ticket.stop) * resizedShares;
+    ticket.allocationPct = ticket.positionValue / virtualBalance * 100;
+    universeRecommendations.push(ticket);
+    deployed += ticket.positionValue;
+    if (isClassified) {
       sectorExposure[sector] = (sectorExposure[sector] || 0) + ticket.positionValue;
       sectorCount[sector] = (sectorCount[sector] || 0) + 1;
-      return universeRecommendations.length >= maxResults || deployed >= deploymentCap;
-    });
+    }
+  }
   const updated = new Date(snapshot.generatedAt).toLocaleString();
-  const summary = 'Daily snapshot updated ' + updated + '. Coverage: ' + live + '/' + symbols.length + '. ' + failed + ' incomplete. ' + qualified + ' passed every gate; showing ' + universeRecommendations.length + ' portfolio-sized recommendation' + (universeRecommendations.length === 1 ? '' : 's') + '.';
+  const exclusionNotes = [
+    excluded.queued ? excluded.queued + ' already queued' : '',
+    excluded.sector ? excluded.sector + ' blocked by sector limits' : '',
+    excluded.capacity ? excluded.capacity + ' blocked by deployment capacity' : '',
+    excluded.size ? excluded.size + ' too large for remaining limits' : ''
+  ].filter(Boolean).join('; ');
+  const summary = 'Daily snapshot updated ' + updated + '. Coverage: ' + live + '/' + symbols.length + '. ' + failed + ' incomplete. ' + qualified + ' passed every gate; showing ' + universeRecommendations.length + ' portfolio-sized recommendation' + (universeRecommendations.length === 1 ? '' : 's') + (exclusionNotes ? '. Excluded: ' + exclusionNotes + '.' : '.');
   setUniverseProgress(symbols.length, symbols.length, summary);
   renderUniverseResults(summary);
   button.disabled = false;
