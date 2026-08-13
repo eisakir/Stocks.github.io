@@ -376,6 +376,9 @@
             <div><small>SPY RETURN</small><b id="spyReturn">—</b></div>
             <div><small>DATA POINTS</small><b id="points">—</b></div>
           </div>
+          <div id="backtestVerdict" class="backtest-verdict inconclusive" role="status" aria-live="polite">
+            <b>WAITING FOR RESULTS</b><span>Run a scan to compare return and downside risk.</span>
+          </div>
           <div id="sampleWarning" class="sample-warning" role="status"></div>
         </div>
         <div class="curve-card">
@@ -466,7 +469,7 @@
             <small>MAX RISK / TRADE · 1%</small><b id="maxRiskDisplay">$1,482.65</b>
           </div>
           <div>
-            <small>MAX POSITION · 10%</small><b id="maxPositionDisplay">$14,826.48</b>
+            <small>ABSOLUTE POSITION CEILING · 10%</small><b id="maxPositionDisplay">$14,826.48</b>
           </div>
           <div><small>DIRECTION</small><b>Long only</b></div>
         </div>
@@ -475,7 +478,7 @@
             <div>
               <span>MARKET-WIDE OPPORTUNITY SCAN</span>
               <h3 id="universeTitle">Screen 100 large-cap stocks</h3>
-              <p>Ranks only stocks that pass every live-data, valuation, ensemble, and risk gate. Scanning can take several minutes because requests are deliberately paced.</p>
+              <p>Ranks only stocks that pass every live-data, valuation, ensemble, and risk gate, then applies volatility-aware sizing and sector limits. Scanning uses the verified daily snapshot.</p>
             </div>
             <button id="runUniverseScan" type="button">Scan 100 stocks</button>
           </div>
@@ -493,7 +496,7 @@
                 <option value="10">Top 10</option>
               </select>
             </label>
-            <div><small>PORTFOLIO DEPLOYMENT CAP</small><b>50% total · 10% each</b></div>
+            <div><small>DIVERSIFIED ALLOCATION</small><b>40% batch · 3–8% typical · 18% sector cap</b></div>
           </div>
           <div id="universeProgress" class="universe-progress" role="status" aria-live="polite">
             <div><i></i></div><span>Ready to scan. Recommendations use live data only.</span>
