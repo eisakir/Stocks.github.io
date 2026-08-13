@@ -298,6 +298,15 @@ dialog::backdrop { background: rgb(6 14 23 / .62); backdrop-filter: blur(5px); }
   .queue-card > div:first-child, .queue-actions { grid-column: 1 / -1; }
   .install-panel > div { grid-column: 1 / -1; }
 }
+
+.backtest-verdict { margin-top: 1rem; display: grid; gap: .25rem; padding: 1rem 1.1rem; border: 1px solid var(--border-color); border-left-width: 5px; border-radius: 14px; background: var(--surface-color); }
+.backtest-verdict b { font-size: .78rem; letter-spacing: .09em; }
+.backtest-verdict span { color: var(--muted-text-color); font-size: .92rem; }
+.backtest-verdict.strong { border-left-color: var(--success-color); }
+.backtest-verdict.defensive { border-left-color: var(--focus-color); }
+.backtest-verdict.caution, .backtest-verdict.inconclusive { border-left-color: var(--warning-color); }
+.backtest-verdict.reject { border-left-color: var(--danger-color); }
+
 @media (max-width: 700px) {
   html { scroll-padding-top: 72px; }
   body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
