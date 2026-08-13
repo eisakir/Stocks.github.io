@@ -50,7 +50,8 @@ def fundamentals(symbol):
         "trailingPE": finite(info.get("trailingPE")),
         "forwardPE": finite(info.get("forwardPE")),
         "pegRatio": finite(info.get("pegRatio")),
-        "earningsGrowth": finite(info.get("earningsQuarterlyGrowth") or info.get("earningsGrowth"))
+        "earningsGrowth": finite(info.get("earningsQuarterlyGrowth") or info.get("earningsGrowth")),
+        "sector": str(info.get("sector") or "Unknown")[:80]
     }
     if sum(value is not None and value > 0 for key, value in result.items() if key != "earningsGrowth") < 2:
         raise ValueError("insufficient valuation coverage")
