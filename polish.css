@@ -218,6 +218,21 @@ th { background: var(--surface-muted); color: var(--text-color); }
 .investopedia-steps a { min-height: 44px; display: flex; align-items: center; color: var(--accent-color); font-size: .78rem; font-weight: 850; }
 .queue-head { max-width: var(--content); display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin: 2rem auto 1rem; }
 .queue-head button { background: var(--surface-color); color: var(--text-color); border: 1px solid var(--border-color); }
+.holdings-section { max-width: var(--content); margin: 2rem auto 0; padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-lg); background: var(--surface-muted); }
+.holdings-section .queue-head { margin: 0 0 .5rem; }
+.holdings-status { margin: 0 0 .8rem; color: var(--muted-text-color); font-size: .78rem; }
+.holdings-monitor { display: grid; gap: .75rem; }
+.holding-card { display: grid; grid-template-columns: repeat(5, minmax(100px, 1fr)) 1.5fr auto; align-items: center; gap: .8rem; padding: 1rem; border: 1px solid var(--border-color); border-left: 5px solid var(--warning-color); border-radius: var(--radius-md); background: var(--surface-color); }
+.holding-card.hold { border-left-color: var(--success-color); }
+.holding-card.review { border-left-color: var(--warning-color); }
+.holding-card.sell { border-left-color: var(--danger-color); }
+.holding-card.stale { border-left-color: var(--muted-text-color); }
+.holding-card small, .holding-card span { display: block; color: var(--muted-text-color); font-size: .58rem; }
+.holding-card b { font-size: .78rem; }
+.holding-decision strong { display: block; color: var(--text-color); font-size: .78rem; }
+.holding-decision p { margin: .2rem 0 0; color: var(--muted-text-color); font-size: .68rem; line-height: 1.4; }
+.holding-card button { min-height: 44px; padding: 0 .8rem; border: 0; border-radius: 11px; background: var(--nav-color); color: #fff; font-weight: 750; white-space: nowrap; }
+.holding-card button:disabled { opacity: .45; cursor: not-allowed; }
 .trade-queue { max-width: var(--content); display: grid; gap: .75rem; margin: 0 auto; }
 .empty-queue { padding: 2rem; border: 1px dashed var(--border-color); border-radius: var(--radius-md); color: var(--muted-text-color); text-align: center; }
 .queue-card { display: grid; grid-template-columns: 1.2fr repeat(5, minmax(80px, .7fr)) auto; align-items: center; gap: .8rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--surface-color); }
@@ -295,6 +310,8 @@ dialog::backdrop { background: rgb(6 14 23 / .62); backdrop-filter: blur(5px); }
   .candidate-card { grid-template-columns: repeat(3, 1fr); }
   .candidate-card p, .candidate-card .add-candidate { grid-column: 1 / -1; }
   .queue-card { grid-template-columns: repeat(3, 1fr); }
+  .holding-card { grid-template-columns: repeat(2, 1fr); }
+  .holding-decision, .holding-card button { grid-column: 1 / -1; }
   .queue-card > div:first-child, .queue-actions { grid-column: 1 / -1; }
   .install-panel > div { grid-column: 1 / -1; }
 }
@@ -346,6 +363,8 @@ dialog::backdrop { background: rgb(6 14 23 / .62); backdrop-filter: blur(5px); }
   .ticket-actions { flex-direction: column; }
   .ticket-actions button { width: 100%; }
   .queue-card { grid-template-columns: 1fr 1fr; }
+  .holding-card { grid-template-columns: 1fr; }
+  .holding-decision, .holding-card button { grid-column: auto; }
   .research-library { padding: 62px max(1rem, env(safe-area-inset-left)); }
   .paper-grid { grid-template-columns: 1fr; }
   .paper-grid article { min-height: 0; }
