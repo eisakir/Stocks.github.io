@@ -563,11 +563,14 @@ function loadPaperTrades() {
   try { paperTradeQueue = JSON.parse(localStorage.getItem('stocks-paper-trades') || '[]'); }
   catch { paperTradeQueue = []; }
   renderTradeQueue();
+  renderHoldings();
+  refreshHoldings();
 }
 
 function savePaperTrades() {
   localStorage.setItem('stocks-paper-trades', JSON.stringify(paperTradeQueue));
   renderTradeQueue();
+  renderHoldings();
   renderPaperTicket();
 }
 
@@ -805,6 +808,95 @@ function renderPaperTicket() {
   $('#copyTradeButton').disabled = !ticket.allowed;
 }
 
+function holdingDecision(ticket, holdingAnalysis, currentPrice) {
+  if (currentPrice <= ticket.stop) return { signal: 'STOP TRIGGERED', level: 'sell', reason: 'The latest close is at or below the protective stop established when the trade was approved.' };
+  if (currentPrice >= ticket.target) return { signal: 'TARGET REACHED', level: 'review', reason: 'The original two-to-one profit objective has been reached. Review the position rather than automatically assuming further upside.' };
+  if (holdingAnalysis.ensembleSignal === 'SELL' || holdingAnalysis.ensembleScore <= 32) return { signal: 'SELL', level: 'sell', reason: 'The current Quant Ensemble has moved to a confirmed bearish reading.' };
+  if (holdingAnalysis.riskLevel === 'HIGH') return { signal: 'REVIEW / REDUCE', level: 'review', reason: 'Risk is now classified HIGH, so the original position size may no longer be appropriate.' };
+  if (holdingAnalysis.ensembleScore < 58 || holdingAnalysis.ensembleSignal === 'WATCH') return { signal: 'REVIEW / REDUCE', level: 'review', reason: 'Bullish evidence has weakened below the level required for a fresh purchase.' };
+  return { signal: 'HOLD', level: 'hold', reason: 'Price remains above the stop and the updated ensemble has not produced an exit condition.' };
+}
+
+async function refreshHoldings() {
+  const placed = paperTradeQueue.filter(ticket => ticket.status === 'PLACED');
+  const status = $('#holdingsStatus');
+  if (!placed.length) {
+    if (status) status.textContent = 'No active paper holdings to review.';
+    renderHoldings();
+    return;
+  }
+  if (status) status.textContent = 'Checking ' + placed.length + ' active holding' + (placed.length === 1 ? '' : 's') + ' against the latest verified snapshot…';
+  try {
+    const snapshot = await loadUniverseSnapshot();
+    placed.forEach(ticket => {
+      try {
+        const item = snapshot.stocks[ticket.symbol];
+        if (!item?.rows?.length || !item.fundamentals) throw new Error('coverage unavailable');
+        const holdingAnalysis = analyze(item.rows, snapshot.spy, { ...item.fundamentals, source: 'LIVE FUNDAMENTALS' });
+        const currentPrice = holdingAnalysis.latest.close;
+        const decision = holdingDecision(ticket, holdingAnalysis, currentPrice);
+        Object.assign(ticket, {
+          currentPrice,
+          unrealizedPnL: (currentPrice - ticket.entry) * ticket.shares,
+          unrealizedPct: (currentPrice / ticket.entry - 1) * 100,
+          exitSignal: decision.signal,
+          exitLevel: decision.level,
+          exitReason: decision.reason,
+          currentScore: holdingAnalysis.ensembleScore,
+          currentRisk: holdingAnalysis.riskLevel,
+          reviewedAt: snapshot.generatedAt,
+          dataAsOf: holdingAnalysis.latest.date
+        });
+      } catch {
+        Object.assign(ticket, { exitSignal: 'DATA UNAVAILABLE', exitLevel: 'stale', exitReason: 'No fresh verified snapshot is available for this holding. Do not act on stale data.' });
+      }
+    });
+    localStorage.setItem('stocks-paper-trades', JSON.stringify(paperTradeQueue));
+    renderTradeQueue();
+    renderHoldings();
+    if (status) status.textContent = 'Exit review updated from the verified daily snapshot generated ' + new Date(snapshot.generatedAt).toLocaleString() + '.';
+  } catch (error) {
+    if (status) status.textContent = 'Holdings could not be refreshed: ' + error.message + '. Existing exit levels remain visible, but no new recommendation was created.';
+  }
+}
+
+function renderHoldings() {
+  const container = $('#holdingsMonitor');
+  if (!container) return;
+  const placed = paperTradeQueue.filter(ticket => ticket.status === 'PLACED');
+  if (!placed.length) {
+    container.innerHTML = '<p class="empty-queue">Mark a queued trade as placed to begin daily exit monitoring.</p>';
+    return;
+  }
+  container.innerHTML = placed.map(ticket => {
+    const signal = ticket.exitSignal || 'AWAITING REVIEW';
+    const level = ticket.exitLevel || 'stale';
+    const price = Number.isFinite(ticket.currentPrice) ? formatMoney(ticket.currentPrice) : '—';
+    const pnl = Number.isFinite(ticket.unrealizedPnL) ? formatMoney(ticket.unrealizedPnL) + ' (' + formatPercent(ticket.unrealizedPct) + ')' : '—';
+    return '<article class="holding-card ' + level + '" data-holding="' + ticket.id + '">' +
+      '<div><small>HOLDING</small><b>' + ticket.shares + ' ' + ticket.symbol + '</b><span>' + (ticket.sector || 'Unknown sector') + '</span></div>' +
+      '<div><small>ENTRY / CURRENT</small><b>' + formatMoney(ticket.entry) + ' / ' + price + '</b></div>' +
+      '<div><small>UNREALIZED P/L</small><b>' + pnl + '</b></div>' +
+      '<div><small>STOP / TARGET</small><b>' + formatMoney(ticket.stop) + ' / ' + formatMoney(ticket.target) + '</b></div>' +
+      '<div><small>CURRENT SCORE / RISK</small><b>' + (Number.isFinite(ticket.currentScore) ? ticket.currentScore.toFixed(0) + '/100 · ' + ticket.currentRisk : '—') + '</b></div>' +
+      '<div class="holding-decision"><small>EXIT REVIEW</small><strong>' + signal + '</strong><p>' + (ticket.exitReason || 'Run the daily review to evaluate this holding.') + '</p></div>' +
+      '<button class="mark-sold" type="button" ' + (Number.isFinite(ticket.currentPrice) ? '' : 'disabled') + '>Mark sold</button></article>';
+  }).join('');
+  $('.mark-sold').forEach(button => button.addEventListener('click', () => {
+    const id = button.closest('[data-holding]').dataset.holding;
+    paperTradeQueue = paperTradeQueue.map(ticket => ticket.id === id ? {
+      ...ticket,
+      status: 'SOLD',
+      sold: new Date().toISOString(),
+      exitPrice: ticket.currentPrice,
+      realizedPnL: (ticket.currentPrice - ticket.entry) * ticket.shares,
+      realizedPct: (ticket.currentPrice / ticket.entry - 1) * 100
+    } : ticket);
+    savePaperTrades();
+    $('#holdingsStatus').textContent = 'Paper sale recorded at the latest verified closing price. Enter the sale manually in Investopedia if you have not already done so.';
+  }));
+}
+
 function renderTradeQueue() {
   const container = $('#tradeQueue');
   if (!container) return;
@@ -812,13 +904,14 @@ function renderTradeQueue() {
     container.innerHTML = '<p class="empty-queue">No proposed paper trades yet.</p>';
     return;
   }
-  container.innerHTML = paperTradeQueue.map(ticket => '<article class="queue-card" data-ticket="' + ticket.id + '"><div><small>ORDER</small><b>' + ticket.action + ' ' + ticket.shares + ' ' + ticket.symbol + '</b></div><div><small>LIMIT</small><b>' + formatMoney(ticket.entry) + '</b></div><div><small>STOP</small><b>' + formatMoney(ticket.stop) + '</b></div><div><small>TARGET</small><b>' + formatMoney(ticket.target) + '</b></div><div><small>RISK</small><b>' + formatMoney(ticket.dollarsAtRisk) + '</b></div><div><small>STATUS</small><b class="queue-status">' + ticket.status + '</b></div><div class="queue-actions"><button class="place-ticket">' + (ticket.status === 'PLACED' ? 'Placed ✓' : 'Mark placed') + '</button><button class="remove-ticket">Remove</button></div></article>').join('');
+  container.innerHTML = paperTradeQueue.map(ticket => '<article class="queue-card" data-ticket="' + ticket.id + '"><div><small>ORDER</small><b>' + ticket.action + ' ' + ticket.shares + ' ' + ticket.symbol + '</b></div><div><small>ENTRY</small><b>' + formatMoney(ticket.entry) + '</b></div><div><small>STOP</small><b>' + formatMoney(ticket.stop) + '</b></div><div><small>TARGET</small><b>' + formatMoney(ticket.target) + '</b></div><div><small>' + (ticket.status === 'SOLD' ? 'REALIZED P/L' : 'RISK') + '</small><b>' + (ticket.status === 'SOLD' ? formatMoney(ticket.realizedPnL || 0) : formatMoney(ticket.dollarsAtRisk)) + '</b></div><div><small>STATUS</small><b class="queue-status">' + ticket.status + '</b></div><div class="queue-actions"><button class="place-ticket" ' + (ticket.status !== 'APPROVED' ? 'disabled' : '') + '>' + (ticket.status === 'APPROVED' ? 'Mark placed' : ticket.status === 'PLACED' ? 'Placed ✓' : 'Sold ✓') + '</button><button class="remove-ticket">Remove</button></div></article>').join('');
   $$('.place-ticket').forEach(button => button.addEventListener('click', () => {
     const id = button.closest('[data-ticket]').dataset.ticket;
     paperTradeQueue = paperTradeQueue.map(ticket => ticket.id === id ? { ...ticket, status: 'PLACED', placed: new Date().toISOString() } : ticket);
     savePaperTrades();
+    refreshHoldings();
   }));
-  $$('.remove-ticket').forEach(button => button.addEventListener('click', () => {
+  $('.remove-ticket').forEach(button => button.addEventListener('click', () => {
     const id = button.closest('[data-ticket]').dataset.ticket;
     paperTradeQueue = paperTradeQueue.filter(ticket => ticket.id !== id);
     savePaperTrades();
@@ -831,8 +924,8 @@ function paperTicketText(ticket) {
 
 function exportPaperTrades() {
   const quote = value => '"' + String(value ?? '').replaceAll('"', '""') + '"';
-  const header = 'created,placed,status,symbol,action,order_type,shares,entry_limit,stop,target,position_value,dollars_at_risk,ensemble_score,valuation_score,risk_level,reason';
-  const rows = paperTradeQueue.map(ticket => [ticket.created, ticket.placed, ticket.status, ticket.symbol, ticket.action, ticket.orderType, ticket.shares, ticket.entry, ticket.stop, ticket.target, ticket.positionValue, ticket.dollarsAtRisk, ticket.score, ticket.valuationScore, ticket.riskLevel, ticket.reason].map(quote).join(','));
+  const header = 'created,placed,sold,status,symbol,sector,action,order_type,shares,entry_limit,current_price,exit_price,stop,target,position_value,dollars_at_risk,unrealized_pnl,realized_pnl,ensemble_score,current_score,valuation_score,risk_level,current_risk,exit_signal,reason';
+  const rows = paperTradeQueue.map(ticket => [ticket.created, ticket.placed, ticket.sold, ticket.status, ticket.symbol, ticket.sector, ticket.action, ticket.orderType, ticket.shares, ticket.entry, ticket.currentPrice, ticket.exitPrice, ticket.stop, ticket.target, ticket.positionValue, ticket.dollarsAtRisk, ticket.unrealizedPnL, ticket.realizedPnL, ticket.score, ticket.currentScore, ticket.valuationScore, ticket.riskLevel, ticket.currentRisk, ticket.exitSignal, ticket.reason].map(quote).join(','));
   const anchor = document.createElement('a');
   anchor.href = URL.createObjectURL(new Blob([[header, ...rows].join('\n')], { type: 'text/csv' }));
   anchor.download = 'investopedia-paper-trade-journal.csv';
@@ -861,6 +954,7 @@ if (typeof document !== 'undefined') {
     }
   });
   $('#exportTradesButton').addEventListener('click', exportPaperTrades);
+  $('#refreshHoldingsButton').addEventListener('click', refreshHoldings);
   $('#runUniverseScan').addEventListener('click', runUniverseScan);
   $('#universeSelect').addEventListener('change', () => {
     const count = $('#universeSelect').value === 'core50' ? 50 : 100;
