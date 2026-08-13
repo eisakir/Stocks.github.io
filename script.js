@@ -644,7 +644,7 @@ function renderUniverseResults(summary = '') {
       '<button class="add-candidate" type="button">Add to queue</button>' +
       '<p>' + ticket.reason + '</p></article>'
   ).join('');
-  $('.add-candidate').forEach(button => button.addEventListener('click', () => {
+  document.querySelectorAll('.add-candidate').forEach(button => button.addEventListener('click', () => {
     const symbol = button.closest('[data-candidate]').dataset.candidate;
     const ticket = universeRecommendations.find(item => item.symbol === symbol);
     if (!ticket) return;
