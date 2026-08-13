@@ -809,7 +809,7 @@ async function runUniverseScan() {
     excluded.size ? excluded.size + ' too large for remaining limits' : ''
   ].filter(Boolean).join('; ');
   const summary = 'Daily snapshot updated ' + updated + '. Coverage: ' + live + '/' + symbols.length + '. ' + failed + ' incomplete. ' + qualified + ' passed every gate; showing ' + universeRecommendations.length + ' portfolio-sized recommendation' + (universeRecommendations.length === 1 ? '' : 's') + (exclusionNotes ? '. Excluded: ' + exclusionNotes + '.' : '.');
-  setUniverseProgress(symbols.length, symbols.length, summary);
+  setUniverseProgress(symbols.length, symbols.length, 'Scan complete · ' + universeRecommendations.length + ' recommendation' + (universeRecommendations.length === 1 ? '' : 's') + ' ready');
   renderUniverseResults(summary);
   button.disabled = false;
   button.textContent = 'Scan ' + size + ' stocks';
