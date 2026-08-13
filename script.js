@@ -257,6 +257,14 @@ function backtest(data, market, strategy) {
   const sortino = deviation(downside) ? annualizedReturn / (deviation(downside) * Math.sqrt(252)) : 0;
   let peak = 1, maximumDrawdown = 0;
   dailyValues.forEach(value => { peak = Math.max(peak, value); maximumDrawdown = Math.max(maximumDrawdown, (peak - value) / peak); });
+  const curveDrawdown = key => {
+    let curvePeak = 1, curveMaximum = 0;
+    curve.forEach(point => {
+      curvePeak = Math.max(curvePeak, point[key]);
+      curveMaximum = Math.max(curveMaximum, (curvePeak - point[key]) / curvePeak);
+    });
+    return curveMaximum * 100;
+  };
   const years = Math.max((data.length - start) / 252, .1);
   return {
     returnPct: (finalValue - 1) * 100,
@@ -265,6 +273,8 @@ function backtest(data, market, strategy) {
     cagr: (finalValue ** (1 / years) - 1) * 100,
     sharpe, sortino,
     maxDrawdown: maximumDrawdown * 100,
+    holdDrawdown: curveDrawdown('hold'),
+    spyDrawdown: curveDrawdown('spy'),
     trades: trades.length,
     winRate: trades.length ? wins / trades.length * 100 : 0,
     exposure: exposureDays / Math.max(data.length - start, 1) * 100,
@@ -494,6 +504,18 @@ function renderPriceChart() {
   priceChart = new Chart($('#priceChart'), { type: 'line', data: { labels: view.map(row => row.date), datasets: [{ label: 'Adjusted close', data: view.map(row => row.close), borderColor: colors.green, backgroundColor: `${colors.green}22`, fill: true, pointRadius: 0, borderWidth: 2 }, { label: active === 'mean' ? 'Bollinger midpoint' : active === 'atr' ? 'Prior resistance' : 'SMA 50', data: reference, borderColor: colors.muted, pointRadius: 0, borderDash: [5, 5], borderWidth: 1.5 }] }, options: commonChartOptions() });
 }
 
+function assessBacktest(result) {
+  if (active === 'valuation') return { level: 'inconclusive', title: 'NO HISTORICAL VERDICT', text: 'Point-in-time valuation data is unavailable, so this strategy cannot be judged honestly with the current backtest.' };
+  if (result.trades < 8) return { level: 'inconclusive', title: 'INSUFFICIENT EVIDENCE', text: 'Too few trades occurred to decide whether the strategy is safer or more effective than Buy & Hold.' };
+  const drawdownReduction = result.holdDrawdown > 0 ? 1 - result.maxDrawdown / result.holdDrawdown : 0;
+  const outperforms = result.returnPct > result.holdPct;
+  const acceptableRiskAdjusted = result.sharpe >= .5 && result.sortino >= .5;
+  if (outperforms && acceptableRiskAdjusted) return { level: 'strong', title: 'OUTPERFORMING WITH CONTROLLED RISK', text: 'The strategy beat Buy & Hold in this sample and cleared the minimum Sharpe and Sortino safeguards.' };
+  if (!outperforms && drawdownReduction >= .30 && acceptableRiskAdjusted && result.returnPct > 0) return { level: 'defensive', title: 'DEFENSIVE TRADE-OFF', text: 'Return trailed Buy & Hold, but maximum drawdown was at least 30% smaller and risk-adjusted results remained acceptable.' };
+  if (result.returnPct <= 0 || result.sharpe < .25 || result.sortino < .25) return { level: 'reject', title: 'STRATEGY NOT WORTHWHILE HERE', text: 'Return or risk-adjusted performance is too weak. This backtest does not justify using the strategy for this stock.' };
+  return { level: 'caution', title: 'NO CLEAR ADVANTAGE', text: 'The strategy did not beat Buy & Hold or reduce risk enough to justify the lower return in this sample.' };
+}
+
 function renderBacktest() {
   const result = backtest(rows, benchmarkRows, active);
   $('#strategyReturn').textContent = formatPercent(result.returnPct);
@@ -510,6 +532,9 @@ function renderBacktest() {
   $('#spyReturn').textContent = formatPercent(result.spyPct);
   $('#points').textContent = rows.length;
   $('#sampleWarning').textContent = active === 'valuation' ? 'A historical valuation backtest is intentionally unavailable because this app does not have point-in-time P/E, forward P/E, PEG, and analyst forecasts. Using today’s ratios in the past would create look-ahead bias.' : active === 'ensemble' ? 'The historical ensemble excludes today’s valuation ratios because point-in-time fundamentals are unavailable. Results include estimated 0.10% cost per side.' : result.trades < 8 ? `Only ${result.trades} completed/open trades: this sample is too small for a reliable conclusion.` : 'Results include estimated 0.10% cost on every entry and exit.';
+  const verdict = assessBacktest(result);
+  $('#backtestVerdict').className = 'backtest-verdict ' + verdict.level;
+  $('#backtestVerdict').innerHTML = '<b>' + verdict.title + '</b><span>' + verdict.text + ' Strategy drawdown: ' + result.maxDrawdown.toFixed(1) + '%; Buy & Hold drawdown: ' + result.holdDrawdown.toFixed(1) + '%.</span>';
   const colors = chartColors();
   equityChart?.destroy();
   equityChart = new Chart($('#equityChart'), { type: 'line', data: { labels: result.curve.map(point => point.date), datasets: [{ label: 'Strategy net', data: result.curve.map(point => point.strategy), borderColor: colors.green, pointRadius: 0, borderWidth: 2.8 }, { label: 'Buy & hold', data: result.curve.map(point => point.hold), borderColor: '#67c7ff', backgroundColor: '#67c7ff', pointRadius: 0, borderWidth: 2.5, borderDash: [8, 5] }, { label: 'SPY', data: result.curve.map(point => point.spy), borderColor: colors.gold, backgroundColor: colors.gold, pointRadius: 0, borderWidth: 2.2 }] }, options: { ...commonChartOptions(), scales: { x: { ticks: { display: false }, grid: { display: false } }, y: { ticks: { color: '#c3ced8', callback: value => `${value.toFixed(2)}×` }, grid: { color: '#33465a' } } }, plugins: { legend: { labels: { color: '#e5edf3', boxWidth: 18, boxHeight: 3, padding: 18 } } } } });
@@ -607,11 +632,16 @@ function candidateTicket(symbol, candidateAnalysis, virtualBalance) {
   const stop = Math.min(candidateAnalysis.invalidation, entry - candidateAnalysis.atr14 * .75);
   const riskPerShare = entry - stop;
   if (!(riskPerShare > 0)) return null;
-  const shares = Math.max(0, Math.min(Math.floor((virtualBalance * .01) / riskPerShare), Math.floor((virtualBalance * .10) / entry)));
+  const scoreAllocation = .03 + clamp((candidateAnalysis.ensembleScore - 68) / 22, 0, 1) * .03;
+  const volatilityAdjustment = candidateAnalysis.volatility20 <= 18 ? .02 : candidateAnalysis.volatility20 <= 25 ? .01 : 0;
+  const targetAllocation = Math.min(.08, scoreAllocation + volatilityAdjustment);
+  const riskBudget = candidateAnalysis.riskLevel === 'ELEVATED' ? .004 : .006;
+  const shares = Math.max(0, Math.min(Math.floor((virtualBalance * riskBudget) / riskPerShare), Math.floor((virtualBalance * targetAllocation) / entry)));
   if (shares < 1) return null;
   return {
     allowed: true, id: Date.now().toString(36) + '-' + symbol.toLowerCase(), created: new Date().toISOString(),
-    symbol, action: 'BUY', orderType: 'LIMIT BUY', entry, shares, positionValue: entry * shares, stop,
+    symbol, sector: candidateAnalysis.fundamentals?.sector || 'Unknown', volatility: candidateAnalysis.volatility20,
+    targetAllocation, action: 'BUY', orderType: 'LIMIT BUY', entry, shares, positionValue: entry * shares, stop,
     target: entry + riskPerShare * 2, dollarsAtRisk: riskPerShare * shares,
     timing: 'Place only at or below the limit after rescanning the symbol and confirming the ensemble still reads BUY.',
     score: candidateAnalysis.ensembleScore, valuationScore: candidateAnalysis.valuationScore,
@@ -635,11 +665,11 @@ function renderUniverseResults(summary = '') {
   container.innerHTML = (summary ? '<p class="universe-summary">' + summary + '</p>' : '') + universeRecommendations.map((ticket, index) =>
     '<article class="candidate-card" data-candidate="' + ticket.symbol + '">' +
       '<div class="candidate-rank"><small>RANK</small><b>' + (index + 1) + '</b></div>' +
-      '<div><small>SYMBOL</small><b>' + ticket.symbol + '</b></div>' +
+      '<div><small>SYMBOL</small><b>' + ticket.symbol + '</b><small>' + ticket.sector + '</small></div>' +
       '<div><small>ENSEMBLE</small><b>' + ticket.score.toFixed(0) + '/100</b></div>' +
       '<div><small>VALUATION</small><b>' + ticket.valuationScore.toFixed(0) + '/100</b></div>' +
       '<div><small>BUY</small><b>' + ticket.shares + ' shares</b></div>' +
-      '<div><small>POSITION</small><b>' + formatMoney(ticket.positionValue) + '</b></div>' +
+      '<div><small>POSITION</small><b>' + formatMoney(ticket.positionValue) + '</b><small>' + (ticket.allocationPct || ticket.targetAllocation * 100).toFixed(1) + '% of account</small></div>' +
       '<div><small>LIMIT / STOP</small><b>' + formatMoney(ticket.entry) + ' / ' + formatMoney(ticket.stop) + '</b></div>' +
       '<button class="add-candidate" type="button">Add to queue</button>' +
       '<p>' + ticket.reason + '</p></article>'
@@ -708,17 +738,39 @@ async function runUniverseScan() {
     setUniverseProgress(completed, symbols.length, 'Analyzed ' + completed + ' of ' + symbols.length + ' · ' + qualified + ' passed all gates');
     if (completed % 10 === 0) await new Promise(resolve => setTimeout(resolve, 0));
   }
-  const queued = new Set(paperTradeQueue.filter(item => ['APPROVED', 'PLACED'].includes(item.status)).map(item => item.symbol));
-  const deploymentCap = virtualBalance * .50;
+  const activeTickets = paperTradeQueue.filter(item => ['APPROVED', 'PLACED'].includes(item.status));
+  const queued = new Set(activeTickets.map(item => item.symbol));
+  const deploymentCap = virtualBalance * .40;
+  const sectorCap = virtualBalance * .18;
   let deployed = 0;
-  universeRecommendations = candidates.filter(ticket => !queued.has(ticket.symbol))
+  const sectorExposure = {};
+  const sectorCount = {};
+  activeTickets.forEach(item => {
+    const sector = item.sector || 'Unknown';
+    sectorExposure[sector] = (sectorExposure[sector] || 0) + (item.positionValue || 0);
+    sectorCount[sector] = (sectorCount[sector] || 0) + 1;
+  });
+  universeRecommendations = [];
+  candidates.filter(ticket => !queued.has(ticket.symbol))
     .sort((a, b) => b.score - a.score || b.valuationScore - a.valuationScore)
-    .filter(ticket => {
-      if (deployed + ticket.positionValue > deploymentCap) return false;
+    .some(ticket => {
+      const sector = ticket.sector || 'Unknown';
+      if ((sectorCount[sector] || 0) >= 2) return false;
+      const remainingSector = Math.max(0, sectorCap - (sectorExposure[sector] || 0));
+      const remainingPortfolio = Math.max(0, deploymentCap - deployed);
+      const affordableValue = Math.min(ticket.positionValue, remainingSector, remainingPortfolio);
+      const resizedShares = Math.floor(affordableValue / ticket.entry);
+      if (resizedShares < 1) return false;
+      ticket.shares = resizedShares;
+      ticket.positionValue = resizedShares * ticket.entry;
+      ticket.dollarsAtRisk = (ticket.entry - ticket.stop) * resizedShares;
+      ticket.allocationPct = ticket.positionValue / virtualBalance * 100;
+      universeRecommendations.push(ticket);
       deployed += ticket.positionValue;
-      return true;
-    })
-    .slice(0, maxResults);
+      sectorExposure[sector] = (sectorExposure[sector] || 0) + ticket.positionValue;
+      sectorCount[sector] = (sectorCount[sector] || 0) + 1;
+      return universeRecommendations.length >= maxResults || deployed >= deploymentCap;
+    });
   const updated = new Date(snapshot.generatedAt).toLocaleString();
   const summary = 'Daily snapshot updated ' + updated + '. Coverage: ' + live + '/' + symbols.length + '. ' + failed + ' incomplete. ' + qualified + ' passed every gate; showing ' + universeRecommendations.length + ' portfolio-sized recommendation' + (universeRecommendations.length === 1 ? '' : 's') + '.';
   setUniverseProgress(symbols.length, symbols.length, summary);
