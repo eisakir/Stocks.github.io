@@ -53,7 +53,7 @@ def fundamentals(symbol):
         "earningsGrowth": finite(info.get("earningsQuarterlyGrowth") or info.get("earningsGrowth")),
         "sector": str(info.get("sector") or "Unknown")[:80]
     }
-    if sum(value is not None and value > 0 for key, value in result.items() if key != "earningsGrowth") < 2:
+    if sum(value is not None and value > 0 for key, value in result.items() if key not in {"earningsGrowth", "sector"}) < 2:
         raise ValueError("insufficient valuation coverage")
     return result
 
