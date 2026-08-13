@@ -592,6 +592,19 @@
             >
           </aside>
         </div>
+        <section class="holdings-section" aria-labelledby="holdingsTitle">
+          <div class="queue-head">
+            <div>
+              <span>DAILY EXIT REVIEW</span>
+              <h3 id="holdingsTitle">Holdings &amp; Exit Monitor</h3>
+            </div>
+            <button id="refreshHoldingsButton" type="button">Refresh holdings</button>
+          </div>
+          <p id="holdingsStatus" class="holdings-status" role="status" aria-live="polite">Placed paper trades are checked against the latest verified daily snapshot.</p>
+          <div id="holdingsMonitor" class="holdings-monitor">
+            <p class="empty-queue">Mark a queued trade as placed to begin daily exit monitoring.</p>
+          </div>
+        </section>
         <div class="queue-head">
           <div>
             <span>REVIEW QUEUE</span>
