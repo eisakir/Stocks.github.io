@@ -1,4 +1,4 @@
-const CACHE = 'stock-strategy-lab-v10';
+const CACHE = 'stock-strategy-lab-v11';
 const APP_SHELL = ['./', './index.html', './style.css', './polish.css', './script.js', './enhancements.js', './manifest.webmanifest', './assets/favicon.svg'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)));
