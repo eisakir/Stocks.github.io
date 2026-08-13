@@ -598,8 +598,12 @@ function buildPaperTicket() {
   const riskPerShare = entry - stop;
   if (!(riskPerShare > 0)) return { allowed: false, reason: 'No trade: a valid protective stop could not be calculated below the entry price.' };
   const virtualBalance = getVirtualBalance();
-  const sharesByRisk = Math.floor((virtualBalance * .01) / riskPerShare);
-  const sharesByPosition = Math.floor((virtualBalance * .10) / entry);
+  const scoreAllocation = .03 + clamp((analysis.ensembleScore - 68) / 22, 0, 1) * .03;
+  const volatilityAdjustment = analysis.volatility20 <= 18 ? .02 : analysis.volatility20 <= 25 ? .01 : 0;
+  const targetAllocation = Math.min(.08, scoreAllocation + volatilityAdjustment);
+  const riskBudget = analysis.riskLevel === 'ELEVATED' ? .004 : .006;
+  const sharesByRisk = Math.floor((virtualBalance * riskBudget) / riskPerShare);
+  const sharesByPosition = Math.floor((virtualBalance * targetAllocation) / entry);
   const shares = Math.max(0, Math.min(sharesByRisk, sharesByPosition));
   if (shares < 1) return { allowed: false, reason: 'No trade: the risk-based position size is below one share.' };
   return {
@@ -607,6 +611,8 @@ function buildPaperTicket() {
     id: Date.now().toString(36),
     created: new Date().toISOString(),
     symbol: ticker,
+    sector: analysis.fundamentals?.sector || 'Unknown',
+    targetAllocation,
     action: 'BUY',
     orderType: 'LIMIT BUY',
     entry,
