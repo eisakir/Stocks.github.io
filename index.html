@@ -271,6 +271,20 @@
               </div>
               <div id="scoreBars"></div>
             </div>
+            <section class="monte-carlo-panel" aria-labelledby="mcTitle">
+              <div class="mc-head">
+                <div><small>FORWARD RISK STRESS TEST</small><h4 id="mcTitle">Monte Carlo simulation</h4></div>
+                <span id="mcBadge" class="mc-badge caution">CALCULATING</span>
+              </div>
+              <div class="mc-metrics">
+                <div><small>TARGET BEFORE STOP</small><b id="mcTargetProbability">—</b></div>
+                <div><small>STOP BEFORE TARGET</small><b id="mcStopProbability">—</b></div>
+                <div><small>MEDIAN 63-DAY RETURN</small><b id="mcMedian">—</b></div>
+                <div><small>10TH-PERCENTILE RETURN</small><b id="mcDownside">—</b></div>
+                <div><small>EXPECTED PAYOFF</small><b id="mcExpected">—</b></div>
+              </div>
+              <p id="mcExplanation">Calculating historical block-bootstrap paths…</p>
+            </section>
           </article>
         </div>
       </section>
@@ -291,8 +305,8 @@
             <h3>Quant Ensemble</h3>
             <p>
               Combines trend, relative strength, mean reversion, breakout
-              quality, risk, and fundamental valuation. Conflicting or missing
-              evidence lowers confidence instead of forcing a trade.
+              quality, risk, and fundamental valuation. A Monte Carlo stress
+              test then checks target-versus-stop odds and scales position size.
             </p>
             <button data-open="ensemble">Open strategy ↗</button>
           </article>
@@ -941,6 +955,22 @@
               >Read the reference ↗</a
             >
           </article>
+          <article>
+            <div><span class="paper-topic">MONTE CARLO RISK</span><span class="paper-year">2026</span></div>
+            <h3>Drawdown Risk Beyond Brownian Motion</h3>
+            <p class="authors">Francesco Landolfi</p>
+            <p>
+              Shows that Gaussian simulations can misstate drawdown risk when
+              returns have fat tails, volatility clustering, skewness, or
+              persistence. Multiple path-dependent risk measures are needed.
+            </p>
+            <p class="application">
+              <b>Used in the app:</b> 5,000 historical block-bootstrap paths,
+              target-before-stop ordering, tail outcomes, and explicit model
+              limitations instead of a single predicted price.
+            </p>
+            <a href="https://arxiv.org/abs/2608.00127" target="_blank" rel="noopener">Read the paper ↗</a>
+          </article>
         </div>
         <div class="research-boundaries">
           <h3>What this evidence does—and does not—prove</h3>
@@ -971,6 +1001,10 @@
             <h3>How the library evolves</h3>
           </div>
           <ol>
+            <li>
+              <time datetime="2026-08-22">August 22, 2026</time>
+              <p>Added a 5,000-path, 63-day block-bootstrap Monte Carlo risk layer. It can veto weak target/stop setups and scales position sizes, but cannot guarantee or precisely forecast returns.</p>
+            </li>
             <li>
               <time datetime="2026-08-05">August 5, 2026</time>
               <p>
