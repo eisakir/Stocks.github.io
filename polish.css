@@ -190,7 +190,7 @@ th { background: var(--surface-muted); color: var(--text-color); }
 .universe-progress span { display: block; min-height: 1.3rem; margin-top: .45rem; color: var(--muted-text-color); font-size: .75rem; }
 .universe-results { display: grid; gap: .65rem; margin-top: .75rem; }
 .universe-summary { margin: 0; padding: .75rem; border-radius: 10px; background: var(--surface-muted); color: var(--muted-text-color); font-size: .76rem; }
-.candidate-card { display: grid; grid-template-columns: 52px repeat(6, minmax(82px, 1fr)) auto; align-items: center; gap: .7rem; padding: .9rem; border: 1px solid var(--border-color); border-radius: 14px; background: var(--background-color); }
+.candidate-card { display: grid; grid-template-columns: 52px repeat(7, minmax(82px, 1fr)) auto; align-items: center; gap: .7rem; padding: .9rem; border: 1px solid var(--border-color); border-radius: 14px; background: var(--background-color); }
 .candidate-card small { display: block; color: var(--muted-text-color); font-size: .56rem; }
 .candidate-card b { font-size: .76rem; }
 .candidate-rank b { color: var(--gold-color); font-size: 1.2rem; }
@@ -324,6 +324,19 @@ dialog::backdrop { background: rgb(6 14 23 / .62); backdrop-filter: blur(5px); }
 .backtest-verdict.caution, .backtest-verdict.inconclusive { border-left-color: var(--warning-color); }
 .backtest-verdict.reject { border-left-color: var(--danger-color); }
 
+
+.monte-carlo-panel { margin-top: 1rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--surface-muted); }
+.mc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.mc-head small, .mc-metrics small { color: var(--muted-text-color); font-size: .6rem; letter-spacing: .08em; }
+.mc-head h4 { margin: .25rem 0 0; font: 1.2rem ui-serif, Georgia, serif; }
+.mc-badge { padding: .4rem .6rem; border-radius: 999px; font-size: .62rem; font-weight: 850; }
+.mc-badge.pass { color: var(--success-color); background: color-mix(in srgb, var(--success-color) 14%, transparent); }
+.mc-badge.caution { color: var(--warning-color); background: color-mix(in srgb, var(--warning-color) 14%, transparent); }
+.mc-metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: .6rem; margin-top: .9rem; }
+.mc-metrics > div { padding: .7rem; border: 1px solid var(--border-color); border-radius: 10px; background: var(--surface-color); }
+.mc-metrics b { display: block; margin-top: .25rem; font-size: .85rem; }
+.monte-carlo-panel > p { margin: .75rem 0 0; color: var(--muted-text-color); font-size: .72rem; line-height: 1.5; }
+
 @media (max-width: 700px) {
   html { scroll-padding-top: 72px; }
   body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
@@ -349,6 +362,8 @@ dialog::backdrop { background: rgb(6 14 23 / .62); backdrop-filter: blur(5px); }
   .guide-grid article { max-width: none; }
   .research-grid { grid-template-columns: 1fr 1fr; }
   .valuation-metrics { grid-template-columns: 1fr 1fr; }
+  .mc-metrics { grid-template-columns: 1fr 1fr; }
+  .mc-head { flex-direction: column; }
   .valuation-head { flex-direction: column; }
   .valuation-head > span { text-align: left; }
   .paper-trades { padding: 62px max(1rem, env(safe-area-inset-left)); }
