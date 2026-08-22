@@ -112,7 +112,7 @@ function monteCarloSimulation(data, entry, stop, target, paths = 5000, horizon =
   const targetProbability = targetFirst / paths;
   const stopProbability = stopFirst / paths;
   const expectedMultiple = payoffSum / paths;
-  const pass = targetProbability >= .38 && stopProbability <= .42 && expectedMultiple > .10;
+  const pass = targetProbability > stopProbability && stopProbability <= .35 && expectedMultiple > .15;
   return {
     paths, horizon, blockLength, targetProbability, stopProbability, neitherProbability: neither / paths,
     medianReturn: percentile(.5), downside10: percentile(.1), upside90: percentile(.9), expectedMultiple,
@@ -663,7 +663,7 @@ function buildPaperTicket() {
   const virtualBalance = getVirtualBalance();
   const scoreAllocation = .03 + clamp((analysis.ensembleScore - 68) / 22, 0, 1) * .03;
   const volatilityAdjustment = analysis.volatility20 <= 18 ? .02 : analysis.volatility20 <= 25 ? .01 : 0;
-  const monteCarloScale = clamp(.75 + (simulation.expectedMultiple - .10) * .25 + (simulation.targetProbability - .38), .65, 1.05);
+  const monteCarloScale = clamp(.75 + (simulation.expectedMultiple - .15) * .25 + (simulation.targetProbability - simulation.stopProbability) * .35, .65, 1.05);
   const targetAllocation = Math.min(.08, (scoreAllocation + volatilityAdjustment) * monteCarloScale);
   const riskBudget = (analysis.riskLevel === 'ELEVATED' ? .004 : .006) * monteCarloScale;
   const sharesByRisk = Math.floor((virtualBalance * riskBudget) / riskPerShare);
@@ -707,7 +707,7 @@ function candidateTicket(symbol, candidateAnalysis, virtualBalance) {
   if (!simulation?.pass) return null;
   const scoreAllocation = .03 + clamp((candidateAnalysis.ensembleScore - 68) / 22, 0, 1) * .03;
   const volatilityAdjustment = candidateAnalysis.volatility20 <= 18 ? .02 : candidateAnalysis.volatility20 <= 25 ? .01 : 0;
-  const monteCarloScale = clamp(.75 + (simulation.expectedMultiple - .10) * .25 + (simulation.targetProbability - .38), .65, 1.05);
+  const monteCarloScale = clamp(.75 + (simulation.expectedMultiple - .15) * .25 + (simulation.targetProbability - simulation.stopProbability) * .35, .65, 1.05);
   const targetAllocation = Math.min(.08, (scoreAllocation + volatilityAdjustment) * monteCarloScale);
   const riskBudget = (candidateAnalysis.riskLevel === 'ELEVATED' ? .004 : .006) * monteCarloScale;
   const shares = Math.max(0, Math.min(Math.floor((virtualBalance * riskBudget) / riskPerShare), Math.floor((virtualBalance * targetAllocation) / entry)));
