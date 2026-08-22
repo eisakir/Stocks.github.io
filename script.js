@@ -11,6 +11,7 @@ let analysis = null;
 let priceChart = null;
 let equityChart = null;
 let currentPaperTicket = null;
+let currentMonteCarlo = null;
 let paperTradeQueue = [];
 const DEFAULT_VIRTUAL_BALANCE = 148264.79;
 const LARGE_CAP_UNIVERSE = [
@@ -74,6 +75,49 @@ function annualizedVolatility(data, length, index) {
 function drawdown(data, length, index) {
   const peak = Math.max(...data.slice(Math.max(0, index - length + 1), index + 1).map(row => row.close));
   return (data[index].close / peak - 1) * 100;
+}
+
+function monteCarloSimulation(data, entry, stop, target, paths = 5000, horizon = 63) {
+  const history = data.slice(-253);
+  const returns = history.slice(1).map((row, index) => Math.log(row.close / history[index].close)).filter(Number.isFinite);
+  if (returns.length < 126 || !(entry > stop) || !(target > entry)) return null;
+  let seed = history.reduce((value, row, index) => (value ^ Math.round(row.close * 1000 + index * 2654435761)) >>> 0, 2166136261);
+  const random = () => {
+    seed += 0x6D2B79F5;
+    let value = seed;
+    value = Math.imul(value ^ value >>> 15, value | 1);
+    value ^= value + Math.imul(value ^ value >>> 7, value | 61);
+    return ((value ^ value >>> 14) >>> 0) / 4294967296;
+  };
+  const blockLength = 5;
+  const endings = [];
+  let targetFirst = 0, stopFirst = 0, neither = 0, payoffSum = 0;
+  const risk = entry - stop;
+  for (let path = 0; path < paths; path++) {
+    let price = entry;
+    let outcome = 0;
+    for (let day = 0; day < horizon; day++) {
+      if (day % blockLength === 0) var blockStart = Math.floor(random() * Math.max(1, returns.length - blockLength));
+      price *= Math.exp(returns[Math.min(blockStart + day % blockLength, returns.length - 1)]);
+      if (price <= stop) { stopFirst++; outcome = -1; price = stop; break; }
+      if (price >= target) { targetFirst++; outcome = 1; price = target; break; }
+    }
+    if (!outcome) neither++;
+    const payoffMultiple = outcome === 1 ? (target - entry) / risk : outcome === -1 ? -1 : (price - entry) / risk;
+    payoffSum += payoffMultiple;
+    endings.push((price / entry - 1) * 100);
+  }
+  endings.sort((a, b) => a - b);
+  const percentile = probability => endings[Math.min(endings.length - 1, Math.floor((endings.length - 1) * probability))];
+  const targetProbability = targetFirst / paths;
+  const stopProbability = stopFirst / paths;
+  const expectedMultiple = payoffSum / paths;
+  const pass = targetProbability >= .38 && stopProbability <= .42 && expectedMultiple > .10;
+  return {
+    paths, horizon, blockLength, targetProbability, stopProbability, neitherProbability: neither / paths,
+    medianReturn: percentile(.5), downside10: percentile(.1), upside90: percentile(.9), expectedMultiple,
+    pass, label: pass ? 'MONTE CARLO PASS' : 'MONTE CARLO CAUTION'
+  };
 }
 
 function baseIndicators(data, index) {
@@ -205,7 +249,7 @@ function analyze(stockData, marketData = stockData, fundamentalData = null) {
     atr: { id: 'atr', name: 'ATR Breakout', subtitle: 'Volatility + volume + close confirmation', signal: atrSignal, confidence: Math.round(clamp(48 + Math.abs(breakoutScore - 50), 42, 90)), reason: breakoutBuy ? 'Price cleared prior resistance with an ATR buffer, strong volume, and a close near the session high.' : breakoutSell ? 'Price broke prior support with an ATR buffer, strong volume, and a close near the session low.' : `Confirmation requires a close above ${(resistance + .15 * values.atr14).toFixed(2)} or below ${(support - .15 * values.atr14).toFixed(2)}, plus volume and close-location confirmation.`, metrics: [['ATR 14', values.atr14, 'money'], ['Resistance', resistance, 'money'], ['Volume vs avg', volumeRatio, 'multiple']] }
   };
 
-  return { latest, ...values, marketValues, resistance, support, volumeRatio, regime, riskLevel, invalidation, ensembleScore, ensembleSignal, confidence, subscores, weights, dataQuality, qualityLabel, scoreLabel, valuationAvailable, valuationScore, valuationExplanation, fundamentals: fundamentalData, strategies };
+  return { latest, history: stockData, ...values, marketValues, resistance, support, volumeRatio, regime, riskLevel, invalidation, ensembleScore, ensembleSignal, confidence, subscores, weights, dataQuality, qualityLabel, scoreLabel, valuationAvailable, valuationScore, valuationExplanation, fundamentals: fundamentalData, strategies };
 }
 
 function strategySignal(data, market, index, strategy) {
@@ -430,6 +474,9 @@ function applySignal(element, signal) {
 
 function render() {
   const selected = analysis.strategies[active];
+  const simulationStop = Math.min(analysis.invalidation, analysis.latest.close - analysis.atr14 * .75);
+  const simulationTarget = analysis.latest.close + (analysis.latest.close - simulationStop) * 2;
+  currentMonteCarlo = source === 'LIVE' ? monteCarloSimulation(rows, analysis.latest.close, simulationStop, simulationTarget) : null;
   $('#ticker').textContent = $('#heroTicker').textContent = ticker;
   $('#price').textContent = formatMoney(analysis.latest.close);
   $('#asOf').textContent = `As of ${analysis.latest.date}`;
@@ -468,6 +515,17 @@ function render() {
   $('#valuationExplanation').textContent = analysis.valuationExplanation;
   const labels = { trend: 'Trend', relative: 'Relative strength', mean: 'Mean reversion', breakout: 'Breakout', risk: 'Risk quality', valuation: 'Fundamental value' };
   $('#scoreBars').innerHTML = Object.entries(analysis.subscores).map(([key, value]) => `<div class="score-row"><span>${labels[key]} <small>${Math.round(analysis.weights[key] * 100)}% weight</small></span><div><i style="width:${value.toFixed(1)}%"></i></div><b>${value.toFixed(0)}</b></div>`).join('');
+  const mc = currentMonteCarlo;
+  $('#mcBadge').className = 'mc-badge ' + (mc?.pass ? 'pass' : 'caution');
+  $('#mcBadge').textContent = mc ? mc.label : 'LIVE DATA REQUIRED';
+  $('#mcTargetProbability').textContent = mc ? (mc.targetProbability * 100).toFixed(1) + '%' : '—';
+  $('#mcStopProbability').textContent = mc ? (mc.stopProbability * 100).toFixed(1) + '%' : '—';
+  $('#mcMedian').textContent = mc ? formatPercent(mc.medianReturn) : '—';
+  $('#mcDownside').textContent = mc ? formatPercent(mc.downside10) : '—';
+  $('#mcExpected').textContent = mc ? mc.expectedMultiple.toFixed(2) + 'R' : '—';
+  $('#mcExplanation').textContent = mc
+    ? mc.paths.toLocaleString() + ' block-bootstrap paths over ' + mc.horizon + ' trading days. This is a stress test based on historical returns, not a forecast or guarantee.'
+    : 'Monte Carlo results are blocked when verified live history is unavailable.';
   renderPriceChart();
   renderBacktest();
   renderLog();
@@ -600,11 +658,14 @@ function buildPaperTicket() {
   const stop = Math.min(analysis.invalidation, entry - analysis.atr14 * .75);
   const riskPerShare = entry - stop;
   if (!(riskPerShare > 0)) return { allowed: false, reason: 'No trade: a valid protective stop could not be calculated below the entry price.' };
+  const simulation = currentMonteCarlo || monteCarloSimulation(rows, entry, stop, entry + riskPerShare * 2);
+  if (!simulation?.pass) return { allowed: false, reason: 'No trade: the Monte Carlo stress test did not clear the target-before-stop and expected-payoff safeguards.' };
   const virtualBalance = getVirtualBalance();
   const scoreAllocation = .03 + clamp((analysis.ensembleScore - 68) / 22, 0, 1) * .03;
   const volatilityAdjustment = analysis.volatility20 <= 18 ? .02 : analysis.volatility20 <= 25 ? .01 : 0;
-  const targetAllocation = Math.min(.08, scoreAllocation + volatilityAdjustment);
-  const riskBudget = analysis.riskLevel === 'ELEVATED' ? .004 : .006;
+  const monteCarloScale = clamp(.75 + (simulation.expectedMultiple - .10) * .25 + (simulation.targetProbability - .38), .65, 1.05);
+  const targetAllocation = Math.min(.08, (scoreAllocation + volatilityAdjustment) * monteCarloScale);
+  const riskBudget = (analysis.riskLevel === 'ELEVATED' ? .004 : .006) * monteCarloScale;
   const sharesByRisk = Math.floor((virtualBalance * riskBudget) / riskPerShare);
   const sharesByPosition = Math.floor((virtualBalance * targetAllocation) / entry);
   const shares = Math.max(0, Math.min(sharesByRisk, sharesByPosition));
@@ -616,6 +677,7 @@ function buildPaperTicket() {
     symbol: ticker,
     sector: analysis.fundamentals?.sector || 'Unknown',
     targetAllocation,
+    monteCarlo: simulation,
     action: 'BUY',
     orderType: 'LIMIT BUY',
     entry,
@@ -641,10 +703,13 @@ function candidateTicket(symbol, candidateAnalysis, virtualBalance) {
   const stop = Math.min(candidateAnalysis.invalidation, entry - candidateAnalysis.atr14 * .75);
   const riskPerShare = entry - stop;
   if (!(riskPerShare > 0)) return null;
+  const simulation = monteCarloSimulation(candidateAnalysis.history || [], entry, stop, entry + riskPerShare * 2);
+  if (!simulation?.pass) return null;
   const scoreAllocation = .03 + clamp((candidateAnalysis.ensembleScore - 68) / 22, 0, 1) * .03;
   const volatilityAdjustment = candidateAnalysis.volatility20 <= 18 ? .02 : candidateAnalysis.volatility20 <= 25 ? .01 : 0;
-  const targetAllocation = Math.min(.08, scoreAllocation + volatilityAdjustment);
-  const riskBudget = candidateAnalysis.riskLevel === 'ELEVATED' ? .004 : .006;
+  const monteCarloScale = clamp(.75 + (simulation.expectedMultiple - .10) * .25 + (simulation.targetProbability - .38), .65, 1.05);
+  const targetAllocation = Math.min(.08, (scoreAllocation + volatilityAdjustment) * monteCarloScale);
+  const riskBudget = (candidateAnalysis.riskLevel === 'ELEVATED' ? .004 : .006) * monteCarloScale;
   const shares = Math.max(0, Math.min(Math.floor((virtualBalance * riskBudget) / riskPerShare), Math.floor((virtualBalance * targetAllocation) / entry)));
   if (shares < 1) return null;
   return {
@@ -654,7 +719,8 @@ function candidateTicket(symbol, candidateAnalysis, virtualBalance) {
     target: entry + riskPerShare * 2, dollarsAtRisk: riskPerShare * shares,
     timing: 'Place only at or below the limit after rescanning the symbol and confirming the ensemble still reads BUY.',
     score: candidateAnalysis.ensembleScore, valuationScore: candidateAnalysis.valuationScore,
-    riskLevel: candidateAnalysis.riskLevel, reason: candidateAnalysis.strategies.ensemble.reason,
+    riskLevel: candidateAnalysis.riskLevel, monteCarlo: simulation,
+    reason: candidateAnalysis.strategies.ensemble.reason + ' Monte Carlo target-first probability is ' + (simulation.targetProbability * 100).toFixed(1) + '% versus ' + (simulation.stopProbability * 100).toFixed(1) + '% stop-first.',
     status: 'APPROVED', scannedAt: new Date().toISOString()
   };
 }
@@ -677,6 +743,7 @@ function renderUniverseResults(summary = '') {
       '<div><small>SYMBOL</small><b>' + ticket.symbol + '</b><small>' + ticket.sector + '</small></div>' +
       '<div><small>ENSEMBLE</small><b>' + ticket.score.toFixed(0) + '/100</b></div>' +
       '<div><small>VALUATION</small><b>' + ticket.valuationScore.toFixed(0) + '/100</b></div>' +
+      '<div><small>MONTE CARLO</small><b>' + (ticket.monteCarlo.targetProbability * 100).toFixed(0) + '% target first</b></div>' +
       '<div><small>BUY</small><b>' + ticket.shares + ' shares</b></div>' +
       '<div><small>POSITION</small><b>' + formatMoney(ticket.positionValue) + '</b><small>' + (ticket.allocationPct || ticket.targetAllocation * 100).toFixed(1) + '% of account</small></div>' +
       '<div><small>LIMIT / STOP</small><b>' + formatMoney(ticket.entry) + ' / ' + formatMoney(ticket.stop) + '</b></div>' +
@@ -951,8 +1018,8 @@ function paperTicketText(ticket) {
 
 function exportPaperTrades() {
   const quote = value => '"' + String(value ?? '').replaceAll('"', '""') + '"';
-  const header = 'created,placed,sold,status,symbol,sector,action,order_type,shares,entry_limit,current_price,exit_price,stop,target,position_value,dollars_at_risk,unrealized_pnl,realized_pnl,ensemble_score,current_score,valuation_score,risk_level,current_risk,exit_signal,reason';
-  const rows = paperTradeQueue.map(ticket => [ticket.created, ticket.placed, ticket.sold, ticket.status, ticket.symbol, ticket.sector, ticket.action, ticket.orderType, ticket.shares, ticket.entry, ticket.currentPrice, ticket.exitPrice, ticket.stop, ticket.target, ticket.positionValue, ticket.dollarsAtRisk, ticket.unrealizedPnL, ticket.realizedPnL, ticket.score, ticket.currentScore, ticket.valuationScore, ticket.riskLevel, ticket.currentRisk, ticket.exitSignal, ticket.reason].map(quote).join(','));
+  const header = 'created,placed,sold,status,symbol,sector,action,order_type,shares,entry_limit,current_price,exit_price,stop,target,position_value,dollars_at_risk,unrealized_pnl,realized_pnl,ensemble_score,current_score,valuation_score,risk_level,current_risk,exit_signal,mc_target_first,mc_stop_first,mc_expected_r,reason';
+  const rows = paperTradeQueue.map(ticket => [ticket.created, ticket.placed, ticket.sold, ticket.status, ticket.symbol, ticket.sector, ticket.action, ticket.orderType, ticket.shares, ticket.entry, ticket.currentPrice, ticket.exitPrice, ticket.stop, ticket.target, ticket.positionValue, ticket.dollarsAtRisk, ticket.unrealizedPnL, ticket.realizedPnL, ticket.score, ticket.currentScore, ticket.valuationScore, ticket.riskLevel, ticket.currentRisk, ticket.exitSignal, ticket.monteCarlo?.targetProbability, ticket.monteCarlo?.stopProbability, ticket.monteCarlo?.expectedMultiple, ticket.reason].map(quote).join(','));
   const anchor = document.createElement('a');
   anchor.href = URL.createObjectURL(new Blob([[header, ...rows].join('\n')], { type: 'text/csv' }));
   anchor.download = 'investopedia-paper-trade-journal.csv';
