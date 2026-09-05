@@ -617,6 +617,89 @@ function downloadCsv() {
   URL.revokeObjectURL(anchor.href);
 }
 
+function parseInvestopediaHistory(html) {
+  const documentRoot = new DOMParser().parseFromString(html, 'text/html');
+  const tableRows = [...documentRoot.querySelectorAll('table tr')];
+  if (tableRows.length < 2) throw new Error('No trade-history table was found.');
+  const headings = [...tableRows[0].querySelectorAll('th,td')].map(cell => cell.textContent.trim().toLowerCase());
+  const required = ['date', 'symbol', 'trade type', 'quantity', 'price'];
+  if (!required.every(label => headings.includes(label))) throw new Error('This does not match Investopedia’s all-time trade-history format.');
+  const column = Object.fromEntries(required.map(label => [label, headings.indexOf(label)]));
+  const trades = tableRows.slice(1).map(row => {
+    const cells = [...row.querySelectorAll('td')].map(cell => cell.textContent.trim());
+    const quantity = Number((cells[column.quantity] || '').replace(/,/g, ''));
+    const price = Number((cells[column.price] || '').replace(/[$,]/g, ''));
+    const date = new Date(cells[column.date]);
+    return { date, symbol: (cells[column.symbol] || '').toUpperCase(), type: cells[column['trade type']] || '', quantity, price };
+  }).filter(trade => trade.symbol && Number.isFinite(trade.quantity) && trade.quantity > 0 && Number.isFinite(trade.price) && trade.price > 0 && !Number.isNaN(trade.date.getTime()));
+  if (!trades.length) throw new Error('No completed trades were found.');
+  trades.sort((a, b) => a.date - b.date);
+  const positions = new Map();
+  trades.forEach(trade => {
+    const current = positions.get(trade.symbol) || { quantity: 0, cost: 0, lastDate: trade.date };
+    const isBuy = /Stock:\s*Buy/i.test(trade.type);
+    const isSell = /Stock:\s*Sell/i.test(trade.type) && !/Short Stock/i.test(trade.type);
+    const isShort = /Short Stock:/i.test(trade.type);
+    const isCover = /Cover Stock:/i.test(trade.type);
+    if (isBuy) {
+      current.cost += trade.quantity * trade.price;
+      current.quantity += trade.quantity;
+    } else if (isSell) {
+      const sold = Math.min(trade.quantity, Math.max(current.quantity, 0));
+      const averageCost = current.quantity > 0 ? current.cost / current.quantity : 0;
+      current.quantity -= sold;
+      current.cost = Math.max(0, current.cost - sold * averageCost);
+    } else if (isShort) {
+      current.quantity -= trade.quantity;
+      current.cost = current.quantity < 0 ? Math.abs(current.quantity) * trade.price : current.cost;
+    } else if (isCover) {
+      current.quantity = Math.min(0, current.quantity + trade.quantity);
+      if (!current.quantity) current.cost = 0;
+    }
+    current.lastDate = trade.date;
+    positions.set(trade.symbol, current);
+  });
+  return [...positions.entries()].filter(([, position]) => position.quantity > 0).map(([symbol, position]) => ({
+    symbol,
+    shares: Math.round(position.quantity),
+    entry: position.cost / position.quantity,
+    importedAt: new Date().toISOString(),
+    historyThrough: position.lastDate.toISOString(),
+    action: 'BUY',
+    orderType: 'Imported Investopedia holding',
+    status: 'PLACED',
+    created: position.lastDate.toISOString(),
+    placed: position.lastDate.toISOString(),
+    stop: null,
+    target: null,
+    positionValue: position.cost,
+    dollarsAtRisk: 0,
+    riskLevel: 'UNASSESSED',
+    reason: 'Imported from Investopedia all-time trade history. No original strategy stop or target was available.',
+    source: 'INVESTOPEDIA HISTORY',
+    imported: true
+  }));
+}
+
+async function importInvestopediaHistory() {
+  const input = $('#investopediaHistoryInput');
+  const status = $('#portfolioImportStatus');
+  const file = input?.files?.[0];
+  if (!file) { status.textContent = 'Choose your all-time Investopedia trade-history .xls file first.'; return; }
+  try {
+    const holdings = parseInvestopediaHistory(await file.text());
+    const importedSymbols = new Set(holdings.map(item => item.symbol));
+    paperTradeQueue = paperTradeQueue.filter(item => !item.imported || !importedSymbols.has(item.symbol));
+    holdings.forEach(holding => paperTradeQueue.push({ ...holding, id: 'investopedia-' + holding.symbol.toLowerCase() }));
+    savePaperTrades();
+    localStorage.setItem('stocks-investopedia-imported-at', new Date().toISOString());
+    status.textContent = 'Imported ' + holdings.length + ' open holdings. Pending website orders were preserved; closed trades were not added as holdings.';
+    refreshHoldings();
+  } catch (error) {
+    status.textContent = 'Import failed: ' + error.message;
+  }
+}
+
 function loadPaperTrades() {
   try { paperTradeQueue = JSON.parse(localStorage.getItem('stocks-paper-trades') || '[]'); }
   catch { paperTradeQueue = []; }
@@ -649,7 +732,7 @@ function updateVirtualBalance() {
 
 function buildPaperTicket() {
   if (!analysis) return { allowed: false, reason: 'Scan a ticker first.' };
-  if (paperTradeQueue.some(ticket => ticket.symbol === ticker && ['APPROVED', 'PLACED'].includes(ticket.status))) return { allowed: false, reason: 'An approved or placed ticket for this ticker already exists. Duplicate orders are blocked.' };
+  if (paperTradeQueue.some(ticket => ticket.symbol === ticker && ticket.status === 'APPROVED')) return { allowed: false, reason: 'A pending ticket for this ticker already exists. Duplicate pending orders are blocked.' };
   if (source !== 'LIVE') return { allowed: false, reason: 'Paper-trade recommendations are blocked while simulated market data is displayed.' };
   if (!analysis.valuationAvailable || analysis.fundamentals?.source !== 'LIVE FUNDAMENTALS') return { allowed: false, reason: 'A BUY ticket requires live P/E, forward P/E, and PEG coverage. Valuation data is currently incomplete.' };
   if (analysis.ensembleSignal !== 'BUY' || analysis.ensembleScore < 68) return { allowed: false, reason: 'No trade: the Quant Ensemble has not reached the 68/100 BUY threshold.' };
@@ -754,8 +837,8 @@ function renderUniverseResults(summary = '') {
     const symbol = button.closest('[data-candidate]').dataset.candidate;
     const ticket = universeRecommendations.find(item => item.symbol === symbol);
     if (!ticket) return;
-    if (paperTradeQueue.some(item => item.symbol === symbol && ['APPROVED', 'PLACED'].includes(item.status))) {
-      button.textContent = 'Already queued'; button.disabled = true; return;
+    if (paperTradeQueue.some(item => item.symbol === symbol && item.status === 'APPROVED')) {
+      button.textContent = 'Already pending'; button.disabled = true; return;
     }
     paperTradeQueue.unshift({ ...ticket, id: Date.now().toString(36) + '-' + symbol.toLowerCase() });
     savePaperTrades(); button.textContent = 'Added ✓'; button.disabled = true;
@@ -815,9 +898,14 @@ async function runUniverseScan() {
     if (completed % 10 === 0) await new Promise(resolve => setTimeout(resolve, 0));
   }
   const activeTickets = paperTradeQueue.filter(item => ['APPROVED', 'PLACED'].includes(item.status));
-  const queued = new Set(activeTickets.map(item => item.symbol));
+  const pendingSymbols = new Set(activeTickets.filter(item => item.status === 'APPROVED').map(item => item.symbol));
+  const heldValueBySymbol = {};
+  activeTickets.filter(item => item.status === 'PLACED').forEach(item => {
+    heldValueBySymbol[item.symbol] = (heldValueBySymbol[item.symbol] || 0) + (item.positionValue || (item.entry || 0) * (item.shares || 0));
+  });
   const deploymentCap = virtualBalance * .40;
   const sectorCap = virtualBalance * .18;
+  const stockCap = virtualBalance * .10;
   const knownSector = value => {
     const sector = String(value || '').trim();
     return sector && !['unknown', 'unclassified', 'n/a', 'none'].includes(sector.toLowerCase()) ? sector : null;
@@ -832,21 +920,28 @@ async function runUniverseScan() {
     sectorExposure[sector] = (sectorExposure[sector] || 0) + (item.positionValue || 0);
     sectorCount[sector] = (sectorCount[sector] || 0) + 1;
   });
-  const eligible = candidates.filter(ticket => !queued.has(ticket.symbol))
+  const eligible = candidates.filter(ticket => !pendingSymbols.has(ticket.symbol))
     .sort((a, b) => b.score - a.score || b.valuationScore - a.valuationScore);
-  const excluded = { queued: candidates.length - eligible.length, sector: 0, capacity: 0, size: 0 };
+  const excluded = { queued: candidates.length - eligible.length, sector: 0, capacity: 0, size: 0, stockCap: 0 };
   universeRecommendations = [];
   for (const ticket of eligible) {
     if (universeRecommendations.length >= maxResults || deployed >= deploymentCap) break;
     const sector = sectorKey(ticket);
     const isClassified = !sector.startsWith('UNCLASSIFIED:');
-    if (isClassified && (sectorCount[sector] || 0) >= 2) {
+    const existingHoldingValue = heldValueBySymbol[ticket.symbol] || 0;
+    const isExistingHolding = existingHoldingValue > 0;
+    if (isClassified && (sectorCount[sector] || 0) >= 2 && !isExistingHolding) {
       excluded.sector++;
+      continue;
+    }
+    const remainingStock = Math.max(0, stockCap - existingHoldingValue);
+    if (remainingStock < ticket.entry) {
+      excluded.stockCap++;
       continue;
     }
     const remainingSector = isClassified ? Math.max(0, sectorCap - (sectorExposure[sector] || 0)) : ticket.positionValue;
     const remainingPortfolio = Math.max(0, deploymentCap - deployed);
-    const affordableValue = Math.min(ticket.positionValue, remainingSector, remainingPortfolio);
+    const affordableValue = Math.min(ticket.positionValue, remainingStock, remainingSector, remainingPortfolio);
     const resizedShares = Math.floor(affordableValue / ticket.entry);
     if (remainingPortfolio < ticket.entry) {
       excluded.capacity++;
@@ -857,6 +952,8 @@ async function runUniverseScan() {
       continue;
     }
     ticket.sector = knownSector(ticket.sector) || 'Unclassified';
+    ticket.action = isExistingHolding ? 'BUY MORE' : 'BUY';
+    ticket.existingPositionValue = existingHoldingValue;
     ticket.shares = resizedShares;
     ticket.positionValue = resizedShares * ticket.entry;
     ticket.dollarsAtRisk = (ticket.entry - ticket.stop) * resizedShares;
@@ -865,7 +962,7 @@ async function runUniverseScan() {
     deployed += ticket.positionValue;
     if (isClassified) {
       sectorExposure[sector] = (sectorExposure[sector] || 0) + ticket.positionValue;
-      sectorCount[sector] = (sectorCount[sector] || 0) + 1;
+      if (!isExistingHolding) sectorCount[sector] = (sectorCount[sector] || 0) + 1;
     }
   }
   const updated = new Date(snapshot.generatedAt).toLocaleString();
@@ -873,7 +970,8 @@ async function runUniverseScan() {
     excluded.queued ? excluded.queued + ' already queued' : '',
     excluded.sector ? excluded.sector + ' blocked by sector limits' : '',
     excluded.capacity ? excluded.capacity + ' blocked by deployment capacity' : '',
-    excluded.size ? excluded.size + ' too large for remaining limits' : ''
+    excluded.size ? excluded.size + ' too large for remaining limits' : '',
+    excluded.stockCap ? excluded.stockCap + ' already at the 10% per-stock ceiling' : ''
   ].filter(Boolean).join('; ');
   const summary = 'Daily snapshot updated ' + updated + '. Coverage: ' + live + '/' + symbols.length + '. ' + failed + ' incomplete. ' + qualified + ' passed every gate; showing ' + universeRecommendations.length + ' portfolio-sized recommendation' + (universeRecommendations.length === 1 ? '' : 's') + (exclusionNotes ? '. Excluded: ' + exclusionNotes + '.' : '.');
   setUniverseProgress(symbols.length, symbols.length, 'Scan complete · ' + universeRecommendations.length + ' recommendation' + (universeRecommendations.length === 1 ? '' : 's') + ' ready');
@@ -938,6 +1036,8 @@ async function refreshHoldings() {
           exitReason: decision.reason,
           currentScore: holdingAnalysis.ensembleScore,
           currentRisk: holdingAnalysis.riskLevel,
+          sector: item.fundamentals?.sector || ticket.sector,
+          positionValue: currentPrice * ticket.shares,
           reviewedAt: snapshot.generatedAt,
           dataAsOf: holdingAnalysis.latest.date
         });
@@ -971,7 +1071,7 @@ function renderHoldings() {
       '<div><small>HOLDING</small><b>' + ticket.shares + ' ' + ticket.symbol + '</b><span>' + (ticket.sector || 'Unknown sector') + '</span></div>' +
       '<div><small>ENTRY / CURRENT</small><b>' + formatMoney(ticket.entry) + ' / ' + price + '</b></div>' +
       '<div><small>UNREALIZED P/L</small><b>' + pnl + '</b></div>' +
-      '<div><small>STOP / TARGET</small><b>' + formatMoney(ticket.stop) + ' / ' + formatMoney(ticket.target) + '</b></div>' +
+      '<div><small>STOP / TARGET</small><b>' + (Number.isFinite(ticket.stop) && Number.isFinite(ticket.target) ? formatMoney(ticket.stop) + ' / ' + formatMoney(ticket.target) : 'Not available from history') + '</b></div>' +
       '<div><small>CURRENT SCORE / RISK</small><b>' + (Number.isFinite(ticket.currentScore) ? ticket.currentScore.toFixed(0) + '/100 · ' + ticket.currentRisk : '—') + '</b></div>' +
       '<div class="holding-decision"><small>EXIT REVIEW</small><strong>' + signal + '</strong><p>' + (ticket.exitReason || 'Run the daily review to evaluate this holding.') + '</p></div>' +
       '<button class="mark-sold" type="button" ' + (Number.isFinite(ticket.currentPrice) ? '' : 'disabled') + '>Mark sold</button></article>';
@@ -1049,6 +1149,9 @@ if (typeof document !== 'undefined') {
   });
   $('#exportTradesButton').addEventListener('click', exportPaperTrades);
   $('#refreshHoldingsButton').addEventListener('click', refreshHoldings);
+  $('#importInvestopediaButton').addEventListener('click', importInvestopediaHistory);
+  const importedAt = localStorage.getItem('stocks-investopedia-imported-at');
+  if (importedAt) $('#portfolioImportStatus').textContent = 'Investopedia history last imported ' + new Date(importedAt).toLocaleString() + '.';
   $('#runUniverseScan').addEventListener('click', runUniverseScan);
   $('#universeSelect').addEventListener('change', () => {
     const count = $('#universeSelect').value === 'core50' ? 50 : 100;
