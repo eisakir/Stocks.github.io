@@ -1081,7 +1081,7 @@ function renderHoldings() {
       '<div class="holding-decision"><small>EXIT REVIEW</small><strong>' + signal + '</strong><p>' + (ticket.exitReason || 'Run the daily review to evaluate this holding.') + '</p></div>' +
       '<button class="mark-sold" type="button" ' + (Number.isFinite(ticket.currentPrice) ? '' : 'disabled') + '>Mark sold</button></article>';
   }).join('');
-  $('.mark-sold').forEach(button => button.addEventListener('click', () => {
+  $$('.mark-sold').forEach(button => button.addEventListener('click', () => {
     const id = button.closest('[data-holding]').dataset.holding;
     paperTradeQueue = paperTradeQueue.map(ticket => ticket.id === id ? {
       ...ticket,
@@ -1110,7 +1110,7 @@ function renderTradeQueue() {
     savePaperTrades();
     refreshHoldings();
   }));
-  $('.remove-ticket').forEach(button => button.addEventListener('click', () => {
+  $$('.remove-ticket').forEach(button => button.addEventListener('click', () => {
     const id = button.closest('[data-ticket]').dataset.ticket;
     paperTradeQueue = paperTradeQueue.filter(ticket => ticket.id !== id);
     savePaperTrades();
