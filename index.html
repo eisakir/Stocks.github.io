@@ -606,6 +606,18 @@
             >
           </aside>
         </div>
+        <section class="portfolio-import" aria-labelledby="portfolioImportTitle">
+          <div>
+            <span>RESTORE &amp; SYNC</span>
+            <h3 id="portfolioImportTitle">Import Investopedia history</h3>
+            <p>Choose Investopedia’s all-time trade-history <code>.xls</code> file. The app reconstructs open holdings from completed buys, sells, shorts, and covers. Existing pending queue orders are preserved.</p>
+          </div>
+          <div class="import-actions">
+            <input id="investopediaHistoryInput" type="file" accept=".xls,.html,text/html,application/vnd.ms-excel" />
+            <button id="importInvestopediaButton" type="button">Import history</button>
+          </div>
+          <p id="portfolioImportStatus" class="holdings-status" role="status" aria-live="polite">No history imported in this browser yet.</p>
+        </section>
         <section class="holdings-section" aria-labelledby="holdingsTitle">
           <div class="queue-head">
             <div>
