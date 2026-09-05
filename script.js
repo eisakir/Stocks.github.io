@@ -749,10 +749,14 @@ function buildPaperTicket() {
   const monteCarloScale = clamp(.75 + (simulation.expectedMultiple - .15) * .25 + (simulation.targetProbability - simulation.stopProbability) * .35, .65, 1.05);
   const targetAllocation = Math.min(.08, (scoreAllocation + volatilityAdjustment) * monteCarloScale);
   const riskBudget = (analysis.riskLevel === 'ELEVATED' ? .004 : .006) * monteCarloScale;
+  const existingHoldingValue = paperTradeQueue
+    .filter(item => item.symbol === ticker && item.status === 'PLACED')
+    .reduce((sum, item) => sum + (item.positionValue || (item.entry || 0) * (item.shares || 0)), 0);
+  const remainingStockCapacity = Math.max(0, virtualBalance * .10 - existingHoldingValue);
   const sharesByRisk = Math.floor((virtualBalance * riskBudget) / riskPerShare);
-  const sharesByPosition = Math.floor((virtualBalance * targetAllocation) / entry);
+  const sharesByPosition = Math.floor(Math.min(virtualBalance * targetAllocation, remainingStockCapacity) / entry);
   const shares = Math.max(0, Math.min(sharesByRisk, sharesByPosition));
-  if (shares < 1) return { allowed: false, reason: 'No trade: the risk-based position size is below one share.' };
+  if (shares < 1) return { allowed: false, reason: existingHoldingValue > 0 ? 'No add-on trade: the existing holding is already at the 10% per-stock ceiling.' : 'No trade: the risk-based position size is below one share.' };
   return {
     allowed: true,
     id: Date.now().toString(36),
@@ -761,7 +765,8 @@ function buildPaperTicket() {
     sector: analysis.fundamentals?.sector || 'Unknown',
     targetAllocation,
     monteCarlo: simulation,
-    action: 'BUY',
+    action: existingHoldingValue > 0 ? 'BUY MORE' : 'BUY',
+    existingPositionValue: existingHoldingValue,
     orderType: 'LIMIT BUY',
     entry,
     shares,
