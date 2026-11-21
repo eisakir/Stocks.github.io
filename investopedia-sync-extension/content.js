@@ -42,7 +42,7 @@
       if (!data) return;
       const { headers, rows } = data;
       const symbolAt = headerIndex(headers, [/^symbol$/, /ticker/]);
-      const quantityAt = headerIndex(headers, [/quantity/, /shares/]);
+      const quantityAt = headerIndex(headers, [/quantity/, /shares/, /^qty$/]);
       if (symbolAt < 0 || quantityAt < 0) return;
       const transactionAt = headerIndex(headers, [/transaction/, /trade type/, /order type/, /action/]);
       const averageAt = headerIndex(headers, [/purchase price/, /average price/, /avg.*price/, /cost basis/]);
