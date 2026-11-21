@@ -491,16 +491,17 @@
           <div class="universe-head">
             <div>
               <span>MARKET-WIDE OPPORTUNITY SCAN</span>
-              <h3 id="universeTitle">Screen 100 large-cap stocks</h3>
-              <p>Ranks only stocks that pass every live-data, valuation, ensemble, and risk gate, then applies volatility-aware sizing and sector limits. Scanning uses the verified daily snapshot.</p>
+              <h3 id="universeTitle">Screen 500 global stocks</h3>
+              <p>Ranks global stocks that pass every live-data, valuation, ensemble, Monte Carlo, and risk gate, then applies USD-normalized sizing and sector limits. Each market is evaluated against a regional benchmark.</p>
             </div>
-            <button id="runUniverseScan" type="button">Scan 100 stocks</button>
+            <button id="runUniverseScan" type="button">Scan 500 stocks</button>
           </div>
           <div class="universe-controls">
             <label for="universeSelect">Stock universe
               <select id="universeSelect">
-                <option value="large100">Large-cap 100</option>
-                <option value="core50">Faster core 50</option>
+                <option value="global500">Global 500</option>
+                <option value="global250">Faster global 250</option>
+                <option value="us100">U.S. large-cap 100</option>
               </select>
             </label>
             <label for="maxRecommendations">Maximum recommendations
