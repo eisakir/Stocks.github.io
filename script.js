@@ -700,6 +700,103 @@ async function importInvestopediaHistory() {
   }
 }
 
+function importInvestopediaSnapshot(snapshot) {
+  if (!snapshot || !Array.isArray(snapshot.holdings)) throw new Error('No captured Investopedia portfolio was found. Open the Simulator portfolio and capture it first.');
+  const capturedAt = new Date(snapshot.capturedAt);
+  if (Number.isNaN(capturedAt.getTime())) throw new Error('The captured portfolio has an invalid timestamp.');
+  const holdings = snapshot.holdings.filter(item => item.symbol && Number(item.quantity) > 0).map(item => {
+    const entry = Number(item.averagePrice);
+    const currentPrice = Number(item.currentPrice);
+    const usableEntry = Number.isFinite(entry) && entry > 0 ? entry : Number.isFinite(currentPrice) && currentPrice > 0 ? currentPrice : 0;
+    const shares = Math.round(Number(item.quantity));
+    return {
+      id: 'investopedia-sync-holding-' + item.symbol.toLowerCase(),
+      symbol: item.symbol,
+      shares,
+      entry: usableEntry,
+      currentPrice: Number.isFinite(currentPrice) ? currentPrice : null,
+      action: 'BUY',
+      orderType: 'Synced Investopedia holding',
+      status: 'PLACED',
+      created: snapshot.capturedAt,
+      placed: snapshot.capturedAt,
+      stop: null,
+      target: null,
+      positionValue: Number.isFinite(Number(item.marketValue)) ? Number(item.marketValue) : usableEntry * shares,
+      dollarsAtRisk: 0,
+      riskLevel: 'UNASSESSED',
+      reason: 'Synced from the visible Investopedia Simulator portfolio. No original strategy stop or target was available.',
+      source: 'INVESTOPEDIA EXTENSION',
+      imported: true,
+      externalSync: true
+    };
+  });
+  const existingPending = new Set(paperTradeQueue.filter(item => item.status === 'APPROVED' && !item.externalSync).map(item => item.symbol));
+  const pending = (snapshot.pendingOrders || []).filter(item => item.symbol && Number(item.quantity) > 0 && !existingPending.has(item.symbol)).map(item => {
+    const price = Number(item.price);
+    return {
+      id: 'investopedia-sync-pending-' + item.symbol.toLowerCase(),
+      symbol: item.symbol,
+      shares: Math.round(Number(item.quantity)),
+      entry: Number.isFinite(price) && price > 0 ? price : 0,
+      action: /sell/i.test(item.transaction || '') ? 'SELL' : /short/i.test(item.transaction || '') ? 'SHORT' : 'BUY MORE',
+      orderType: item.transaction || 'Pending Investopedia order',
+      status: 'APPROVED',
+      created: snapshot.capturedAt,
+      stop: null,
+      target: null,
+      positionValue: Number.isFinite(price) ? price * Number(item.quantity) : 0,
+      dollarsAtRisk: 0,
+      riskLevel: 'UNASSESSED',
+      reason: 'Pending order synced from Investopedia.',
+      source: 'INVESTOPEDIA EXTENSION',
+      imported: true,
+      externalSync: true
+    };
+  });
+  paperTradeQueue = paperTradeQueue.filter(item => !item.externalSync && !item.imported);
+  paperTradeQueue.push(...holdings, ...pending);
+  const accountValue = Number(snapshot.account?.accountValue);
+  if (Number.isFinite(accountValue) && accountValue >= 100) {
+    $('#virtualBalanceInput').value = accountValue.toFixed(2);
+    localStorage.setItem('stocks-virtual-balance', accountValue.toFixed(2));
+  }
+  savePaperTrades();
+  updateVirtualBalance();
+  localStorage.setItem('stocks-investopedia-synced-at', snapshot.capturedAt);
+  return { holdings: holdings.length, pending: pending.length, capturedAt };
+}
+
+function requestInvestopediaSync() {
+  const status = $('#investopediaSyncStatus');
+  const button = $('#syncInvestopediaButton');
+  const requestId = Date.now().toString(36);
+  button.disabled = true;
+  status.textContent = 'Requesting the latest captured portfolio from the extension…';
+  const timeout = setTimeout(() => {
+    button.disabled = false;
+    status.textContent = 'Extension not detected. Install or reload it, capture the Investopedia portfolio, then try again.';
+    window.removeEventListener('message', receive);
+  }, 4000);
+  function receive(event) {
+    if (event.source !== window || event.origin !== location.origin || event.data?.type !== 'STOCK_LAB_INVESTOPEDIA_RESPONSE' || event.data.requestId !== requestId) return;
+    clearTimeout(timeout);
+    window.removeEventListener('message', receive);
+    button.disabled = false;
+    try {
+      if (event.data.error) throw new Error(event.data.error);
+      const result = importInvestopediaSnapshot(event.data.snapshot);
+      status.textContent = 'Synced ' + result.holdings + ' holding' + (result.holdings === 1 ? '' : 's') + ' and ' + result.pending + ' pending order' + (result.pending === 1 ? '' : 's') + ' from the capture made ' + result.capturedAt.toLocaleString() + '.';
+      refreshHoldings();
+    } catch (error) {
+      status.textContent = 'Sync failed: ' + error.message;
+    }
+  }
+  window.addEventListener('message', receive);
+  window.postMessage({ type: 'STOCK_LAB_REQUEST_INVESTOPEDIA', requestId }, location.origin);
+}
+
+
 function loadPaperTrades() {
   try { paperTradeQueue = JSON.parse(localStorage.getItem('stocks-paper-trades') || '[]'); }
   catch { paperTradeQueue = []; }
@@ -1155,6 +1252,7 @@ if (typeof document !== 'undefined') {
   $('#exportTradesButton').addEventListener('click', exportPaperTrades);
   $('#refreshHoldingsButton').addEventListener('click', refreshHoldings);
   $('#importInvestopediaButton').addEventListener('click', importInvestopediaHistory);
+  $('#syncInvestopediaButton').addEventListener('click', requestInvestopediaSync);
   const importedAt = localStorage.getItem('stocks-investopedia-imported-at');
   if (importedAt) $('#portfolioImportStatus').textContent = 'Investopedia history last imported ' + new Date(importedAt).toLocaleString() + '.';
   $('#runUniverseScan').addEventListener('click', runUniverseScan);
