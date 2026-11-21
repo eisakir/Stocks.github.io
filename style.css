@@ -24,3 +24,27 @@
   .import-actions { justify-items: stretch; }
   .import-actions input { max-width: 100%; }
 }
+
+.extension-sync {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem 1.5rem;
+  align-items: center;
+  margin-top: .5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line, #d8dedb);
+}
+.extension-sync h4 { margin: .25rem 0 .4rem; font-size: 1.15rem; }
+.extension-sync p { margin: 0; }
+.sync-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .65rem; }
+.sync-actions a, .sync-actions button {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 2.75rem; padding: .65rem .9rem; border-radius: .7rem;
+}
+.extension-sync .holdings-status { grid-column: 1 / -1; }
+@media (max-width: 760px) {
+  .extension-sync { grid-template-columns: 1fr; }
+  .sync-actions { justify-content: stretch; }
+  .sync-actions a, .sync-actions button { flex: 1 1 100%; }
+}
