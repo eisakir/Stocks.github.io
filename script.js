@@ -411,21 +411,20 @@ async function scan(symbol) {
   let message = '';
   try {
     let snapshotLoaded = false;
-    if (LARGE_CAP_UNIVERSE.includes(clean) || clean === 'SPY') {
-      try {
-        const snapshot = await loadUniverseSnapshot();
-        const item = clean === 'SPY' ? { rows: snapshot.spy, fundamentals: null } : snapshot.stocks[clean];
-        if (item?.rows?.length >= 253) {
-          rows = item.rows;
-          benchmarkRows = snapshot.spy;
-          fundamentals = item.fundamentals ? { ...item.fundamentals, source: 'LIVE FUNDAMENTALS' } : null;
-          source = 'LIVE';
-          snapshotLoaded = true;
-          message = 'Verified daily market snapshot loaded for ' + clean + '. Data generated ' + new Date(snapshot.generatedAt).toLocaleString() + '.';
-          if (!fundamentals && clean !== 'SPY') message += ' Fundamental ratios were unavailable and are excluded from the score.';
-        }
-      } catch { /* Try the direct source before using the demo fallback. */ }
-    }
+    try {
+      const snapshot = await loadUniverseSnapshot();
+      const item = clean === 'SPY' ? { rows: snapshot.spy, fundamentals: null, meta: { region: 'United States', benchmark: 'SPY' } } : snapshot.stocks[clean];
+      if (item?.rows?.length >= 253) {
+        rows = item.rows;
+        benchmarkRows = snapshot.benchmarks?.[item.meta?.benchmark] || snapshot.spy;
+        fundamentals = item.fundamentals ? { ...item.fundamentals, source: 'LIVE FUNDAMENTALS' } : null;
+        source = 'LIVE';
+        snapshotLoaded = true;
+        const regionText = item.meta?.region ? ' · ' + item.meta.region : '';
+        message = 'Verified daily market snapshot loaded for ' + clean + regionText + '. Prices are shown in current USD equivalents. Data generated ' + new Date(snapshot.generatedAt).toLocaleString() + '.';
+        if (!fundamentals && clean !== 'SPY') message += ' Fundamental ratios were unavailable and are excluded from the score.';
+      }
+    } catch { /* Try the direct source before using the demo fallback. */ }
     if (!snapshotLoaded) {
       const [stockResult, spyResult, fundamentalResult] = await Promise.allSettled([fetchMarket(clean), fetchMarket('SPY'), fetchFundamentals(clean)]);
       if (stockResult.status === 'rejected') throw stockResult.reason;
@@ -842,7 +841,7 @@ function renderUniverseResults(summary = '') {
   container.innerHTML = (summary ? '<p class="universe-summary">' + summary + '</p>' : '') + universeRecommendations.map((ticket, index) =>
     '<article class="candidate-card" data-candidate="' + ticket.symbol + '">' +
       '<div class="candidate-rank"><small>RANK</small><b>' + (index + 1) + '</b></div>' +
-      '<div><small>SYMBOL</small><b>' + ticket.symbol + '</b><small>' + ticket.sector + '</small></div>' +
+      '<div><small>SYMBOL</small><b>' + ticket.symbol + '</b><small>' + ticket.region + ' · ' + ticket.sector + '</small></div>' +
       '<div><small>ENSEMBLE</small><b>' + ticket.score.toFixed(0) + '/100</b></div>' +
       '<div><small>VALUATION</small><b>' + ticket.valuationScore.toFixed(0) + '/100</b></div>' +
       '<div><small>MONTE CARLO</small><b>' + (ticket.monteCarlo.targetProbability * 100).toFixed(0) + '% target first</b></div>' +
@@ -880,18 +879,25 @@ async function runUniverseScan() {
   button.textContent = 'Loading daily data…';
   universeRecommendations = [];
   renderUniverseResults('Loading the latest GitHub-hosted market snapshot…');
-  const size = $('#universeSelect').value === 'core50' ? 50 : 100;
-  const symbols = LARGE_CAP_UNIVERSE.slice(0, size);
+  const selection = $('#universeSelect').value;
+  const requestedCount = selection === 'us100' ? 100 : selection === 'global250' ? 250 : 500;
   const maxResults = Number($('#maxRecommendations').value) || 5;
   const virtualBalance = getVirtualBalance();
   let snapshot;
+  let symbols = [];
   try {
     snapshot = await loadUniverseSnapshot();
+    if (selection !== 'us100' && Number(snapshot.schemaVersion || 1) < 2) throw new Error('the first 500-stock global refresh is still running');
+    const availableUniverse = Array.isArray(snapshot.universe) ? snapshot.universe : Object.keys(snapshot.stocks || {});
+    symbols = selection === 'us100'
+      ? availableUniverse.filter(symbol => snapshot.stocks?.[symbol]?.meta?.region === 'United States').slice(0, 100)
+      : availableUniverse.slice(0, requestedCount);
+    if (!symbols.length) throw new Error('the selected global universe has not been generated yet');
   } catch (error) {
-    setUniverseProgress(0, symbols.length, 'Daily market data is being prepared or refreshed. Please try again shortly.');
+    setUniverseProgress(0, requestedCount, 'Global market data is being prepared or refreshed. Please try again shortly.');
     renderUniverseResults('The automated data snapshot is not ready: ' + error.message + '. No simulated recommendations were produced.');
     button.disabled = false;
-    button.textContent = 'Scan ' + size + ' stocks';
+    button.textContent = 'Scan ' + requestedCount + ' stocks';
     universeScanRunning = false;
     return;
   }
@@ -902,9 +908,18 @@ async function runUniverseScan() {
       const item = snapshot.stocks[symbol];
       if (!item || !Array.isArray(item.rows) || item.rows.length < 253) throw new Error('price history unavailable');
       if (!item.fundamentals) throw new Error('fundamentals unavailable');
-      const candidateAnalysis = analyze(item.rows, snapshot.spy, { ...item.fundamentals, source: 'LIVE FUNDAMENTALS' });
+      const regionalBenchmark = snapshot.benchmarks?.[item.meta?.benchmark] || snapshot.spy;
+      const candidateAnalysis = analyze(item.rows, regionalBenchmark, { ...item.fundamentals, source: 'LIVE FUNDAMENTALS' });
       live++;
       const ticket = candidateTicket(symbol, candidateAnalysis, virtualBalance);
+      if (ticket) {
+        ticket.region = item.meta?.region || 'Unknown market';
+        ticket.exchange = item.meta?.exchange || item.fundamentals?.exchange || 'Unknown exchange';
+        ticket.currency = item.meta?.currency || item.fundamentals?.currency || 'USD';
+        ticket.benchmark = item.meta?.benchmark || 'SPY';
+        ticket.investopediaCompatibility = ticket.region === 'United States' ? 'U.S. listing' : 'Verify foreign symbol in Investopedia';
+        ticket.reason += ' Market: ' + ticket.region + '; benchmark: ' + ticket.benchmark + '. ' + ticket.investopediaCompatibility + '.';
+      }
       if (ticket) {
         ticket.dataAsOf = item.rows.at(-1).date;
         ticket.snapshotGeneratedAt = snapshot.generatedAt;
@@ -985,6 +1000,7 @@ async function runUniverseScan() {
     }
   }
   const updated = new Date(snapshot.generatedAt).toLocaleString();
+  const missingSymbols = symbols.filter(symbol => !snapshot.stocks?.[symbol]);
   const exclusionNotes = [
     excluded.queued ? excluded.queued + ' already queued' : '',
     excluded.sector ? excluded.sector + ' blocked by sector limits' : '',
@@ -992,11 +1008,12 @@ async function runUniverseScan() {
     excluded.size ? excluded.size + ' too large for remaining limits' : '',
     excluded.stockCap ? excluded.stockCap + ' already at the 10% per-stock ceiling' : ''
   ].filter(Boolean).join('; ');
-  const summary = 'Daily snapshot updated ' + updated + '. Coverage: ' + live + '/' + symbols.length + '. ' + failed + ' incomplete. ' + qualified + ' passed every gate; showing ' + universeRecommendations.length + ' portfolio-sized recommendation' + (universeRecommendations.length === 1 ? '' : 's') + (exclusionNotes ? '. Excluded: ' + exclusionNotes + '.' : '.');
+  const missingText = missingSymbols.length ? ' Unavailable: ' + missingSymbols.slice(0, 12).join(', ') + (missingSymbols.length > 12 ? ' +' + (missingSymbols.length - 12) + ' more' : '') + '.' : '';
+  const summary = 'Global snapshot updated ' + updated + '. Coverage: ' + live + '/' + symbols.length + '. ' + failed + ' unavailable.' + missingText + ' ' + qualified + ' passed every gate; showing ' + universeRecommendations.length + ' portfolio-sized recommendation' + (universeRecommendations.length === 1 ? '' : 's') + (exclusionNotes ? '. Excluded: ' + exclusionNotes + '.' : '.');
   setUniverseProgress(symbols.length, symbols.length, 'Scan complete · ' + universeRecommendations.length + ' recommendation' + (universeRecommendations.length === 1 ? '' : 's') + ' ready');
   renderUniverseResults(summary);
   button.disabled = false;
-  button.textContent = 'Scan ' + size + ' stocks';
+  button.textContent = 'Scan ' + requestedCount + ' stocks';
   universeScanRunning = false;
 }
 function renderPaperTicket() {
@@ -1171,7 +1188,8 @@ if (typeof document !== 'undefined') {
   $('#syncInvestopediaButton').addEventListener('click', requestInvestopediaSync);
   $('#runUniverseScan').addEventListener('click', runUniverseScan);
   $('#universeSelect').addEventListener('change', () => {
-    const count = $('#universeSelect').value === 'core50' ? 50 : 100;
+    const value = $('#universeSelect').value;
+    const count = value === 'us100' ? 100 : value === 'global250' ? 250 : 500;
     $('#runUniverseScan').textContent = 'Scan ' + count + ' stocks';
   });
   $('#virtualBalanceInput').value = localStorage.getItem('stocks-virtual-balance') || DEFAULT_VIRTUAL_BALANCE.toFixed(2);
