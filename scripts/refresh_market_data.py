@@ -70,7 +70,7 @@ def normalize_symbol(value, suffix, region):
         raw = digits
     else:
         raw = re.sub(r"[^A-Z0-9.\-]", "", raw)
-        raw = raw.replace(".", "-") if suffix in {"", ".TO"} else raw
+        raw = raw.replace(".", "-") if region in {"United States", "Canada"} else raw
     if not raw or raw in {"NAN","NONE","TICKER","SYMBOL"}:
         return None
     if suffix and not raw.endswith(suffix):
