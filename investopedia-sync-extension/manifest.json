@@ -1,17 +1,24 @@
 {
   "manifest_version": 3,
   "name": "Stock Strategy Lab — Investopedia Sync",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Copies visible Investopedia Simulator portfolio data into Stock Strategy Lab without storing credentials.",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://*.investopedia.com/*",
     "https://eisakir.github.io/Stocks.github.io/*"
   ],
   "content_scripts": [
     {
-      "matches": ["https://*.investopedia.com/*", "https://eisakir.github.io/Stocks.github.io/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://*.investopedia.com/*",
+        "https://eisakir.github.io/Stocks.github.io/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
