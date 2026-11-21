@@ -617,89 +617,6 @@ function downloadCsv() {
   URL.revokeObjectURL(anchor.href);
 }
 
-function parseInvestopediaHistory(html) {
-  const documentRoot = new DOMParser().parseFromString(html, 'text/html');
-  const tableRows = [...documentRoot.querySelectorAll('table tr')];
-  if (tableRows.length < 2) throw new Error('No trade-history table was found.');
-  const headings = [...tableRows[0].querySelectorAll('th,td')].map(cell => cell.textContent.trim().toLowerCase());
-  const required = ['date', 'symbol', 'trade type', 'quantity', 'price'];
-  if (!required.every(label => headings.includes(label))) throw new Error('This does not match Investopedia’s all-time trade-history format.');
-  const column = Object.fromEntries(required.map(label => [label, headings.indexOf(label)]));
-  const trades = tableRows.slice(1).map(row => {
-    const cells = [...row.querySelectorAll('td')].map(cell => cell.textContent.trim());
-    const quantity = Number((cells[column.quantity] || '').replace(/,/g, ''));
-    const price = Number((cells[column.price] || '').replace(/[$,]/g, ''));
-    const date = new Date(cells[column.date]);
-    return { date, symbol: (cells[column.symbol] || '').toUpperCase(), type: cells[column['trade type']] || '', quantity, price };
-  }).filter(trade => trade.symbol && Number.isFinite(trade.quantity) && trade.quantity > 0 && Number.isFinite(trade.price) && trade.price > 0 && !Number.isNaN(trade.date.getTime()));
-  if (!trades.length) throw new Error('No completed trades were found.');
-  trades.sort((a, b) => a.date - b.date);
-  const positions = new Map();
-  trades.forEach(trade => {
-    const current = positions.get(trade.symbol) || { quantity: 0, cost: 0, lastDate: trade.date };
-    const isBuy = /Stock:\s*Buy/i.test(trade.type);
-    const isSell = /Stock:\s*Sell/i.test(trade.type) && !/Short Stock/i.test(trade.type);
-    const isShort = /Short Stock:/i.test(trade.type);
-    const isCover = /Cover Stock:/i.test(trade.type);
-    if (isBuy) {
-      current.cost += trade.quantity * trade.price;
-      current.quantity += trade.quantity;
-    } else if (isSell) {
-      const sold = Math.min(trade.quantity, Math.max(current.quantity, 0));
-      const averageCost = current.quantity > 0 ? current.cost / current.quantity : 0;
-      current.quantity -= sold;
-      current.cost = Math.max(0, current.cost - sold * averageCost);
-    } else if (isShort) {
-      current.quantity -= trade.quantity;
-      current.cost = current.quantity < 0 ? Math.abs(current.quantity) * trade.price : current.cost;
-    } else if (isCover) {
-      current.quantity = Math.min(0, current.quantity + trade.quantity);
-      if (!current.quantity) current.cost = 0;
-    }
-    current.lastDate = trade.date;
-    positions.set(trade.symbol, current);
-  });
-  return [...positions.entries()].filter(([, position]) => position.quantity > 0).map(([symbol, position]) => ({
-    symbol,
-    shares: Math.round(position.quantity),
-    entry: position.cost / position.quantity,
-    importedAt: new Date().toISOString(),
-    historyThrough: position.lastDate.toISOString(),
-    action: 'BUY',
-    orderType: 'Imported Investopedia holding',
-    status: 'PLACED',
-    created: position.lastDate.toISOString(),
-    placed: position.lastDate.toISOString(),
-    stop: null,
-    target: null,
-    positionValue: position.cost,
-    dollarsAtRisk: 0,
-    riskLevel: 'UNASSESSED',
-    reason: 'Imported from Investopedia all-time trade history. No original strategy stop or target was available.',
-    source: 'INVESTOPEDIA HISTORY',
-    imported: true
-  }));
-}
-
-async function importInvestopediaHistory() {
-  const input = $('#investopediaHistoryInput');
-  const status = $('#portfolioImportStatus');
-  const file = input?.files?.[0];
-  if (!file) { status.textContent = 'Choose your all-time Investopedia trade-history .xls file first.'; return; }
-  try {
-    const holdings = parseInvestopediaHistory(await file.text());
-    const importedSymbols = new Set(holdings.map(item => item.symbol));
-    paperTradeQueue = paperTradeQueue.filter(item => !item.imported || !importedSymbols.has(item.symbol));
-    holdings.forEach(holding => paperTradeQueue.push({ ...holding, id: 'investopedia-' + holding.symbol.toLowerCase() }));
-    savePaperTrades();
-    localStorage.setItem('stocks-investopedia-imported-at', new Date().toISOString());
-    status.textContent = 'Imported ' + holdings.length + ' open holdings. Pending website orders were preserved; closed trades were not added as holdings.';
-    refreshHoldings();
-  } catch (error) {
-    status.textContent = 'Import failed: ' + error.message;
-  }
-}
-
 function importInvestopediaSnapshot(snapshot) {
   if (!snapshot || !Array.isArray(snapshot.holdings)) throw new Error('No captured Investopedia portfolio was found. Open the Simulator portfolio and capture it first.');
   const capturedAt = new Date(snapshot.capturedAt);
@@ -1251,10 +1168,7 @@ if (typeof document !== 'undefined') {
   });
   $('#exportTradesButton').addEventListener('click', exportPaperTrades);
   $('#refreshHoldingsButton').addEventListener('click', refreshHoldings);
-  $('#importInvestopediaButton').addEventListener('click', importInvestopediaHistory);
   $('#syncInvestopediaButton').addEventListener('click', requestInvestopediaSync);
-  const importedAt = localStorage.getItem('stocks-investopedia-imported-at');
-  if (importedAt) $('#portfolioImportStatus').textContent = 'Investopedia history last imported ' + new Date(importedAt).toLocaleString() + '.';
   $('#runUniverseScan').addEventListener('click', runUniverseScan);
   $('#universeSelect').addEventListener('change', () => {
     const count = $('#universeSelect').value === 'core50' ? 50 : 100;
