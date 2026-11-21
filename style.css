@@ -15,14 +15,9 @@
 }
 .portfolio-import h3 { margin: .25rem 0 .5rem; }
 .portfolio-import p { margin: 0; max-width: 48rem; }
-.import-actions { display: grid; gap: .75rem; justify-items: end; }
-.import-actions input { max-width: 22rem; }
-.import-actions button { min-height: 2.75rem; }
 .portfolio-import .holdings-status { grid-column: 1 / -1; }
 @media (max-width: 760px) {
   .portfolio-import { grid-template-columns: 1fr; }
-  .import-actions { justify-items: stretch; }
-  .import-actions input { max-width: 100%; }
 }
 
 .extension-sync {
@@ -48,3 +43,5 @@
   .sync-actions { justify-content: stretch; }
   .sync-actions a, .sync-actions button { flex: 1 1 100%; }
 }
+
+.portfolio-import.sync-only .extension-sync { margin-top: 0; padding-top: 0; border-top: 0; }
