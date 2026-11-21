@@ -606,21 +606,11 @@
             >
           </aside>
         </div>
-        <section class="portfolio-import" aria-labelledby="portfolioImportTitle">
-          <div>
-            <span>RESTORE &amp; SYNC</span>
-            <h3 id="portfolioImportTitle">Import Investopedia history</h3>
-            <p>Choose Investopedia’s all-time trade-history <code>.xls</code> file. The app reconstructs open holdings from completed buys, sells, shorts, and covers. Existing pending queue orders are preserved.</p>
-          </div>
-          <div class="import-actions">
-            <input id="investopediaHistoryInput" type="file" accept=".xls,.html,text/html,application/vnd.ms-excel" />
-            <button id="importInvestopediaButton" type="button">Import history</button>
-          </div>
-          <p id="portfolioImportStatus" class="holdings-status" role="status" aria-live="polite">No history imported in this browser yet.</p>
+        <section class="portfolio-import sync-only" aria-labelledby="portfolioSyncTitle">
           <div class="extension-sync">
             <div>
-              <span>BROWSER SYNC</span>
-              <h4>Track your Investopedia account</h4>
+              <span>INVESTOPEDIA SYNC</span>
+              <h3 id="portfolioSyncTitle">Track your Investopedia account</h3>
               <p>Capture the visible Simulator portfolio with the local extension, then sync holdings and pending orders here. Your login never leaves Investopedia.</p>
             </div>
             <div class="sync-actions">
@@ -628,7 +618,7 @@
               <a href="https://www.investopedia.com/simulator/" target="_blank" rel="noopener">Open Investopedia</a>
               <button id="syncInvestopediaButton" type="button">Sync from Investopedia</button>
             </div>
-            <p id="investopediaSyncStatus" class="holdings-status" role="status" aria-live="polite">Install the extension, capture your portfolio on Investopedia, then sync here.</p>
+            <p id="investopediaSyncStatus" class="holdings-status" role="status" aria-live="polite">Capture your portfolio on Investopedia, then sync here.</p>
           </div>
         </section>
         <section class="holdings-section" aria-labelledby="holdingsTitle">
