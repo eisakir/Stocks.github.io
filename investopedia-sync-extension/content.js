@@ -44,7 +44,7 @@
       const symbolAt = headerIndex(headers, [/^symbol$/, /ticker/]);
       const quantityAt = headerIndex(headers, [/quantity/, /shares/, /^qty$/]);
       if (symbolAt < 0 || quantityAt < 0) return;
-      const transactionAt = headerIndex(headers, [/transaction/, /trade type/, /order type/, /action/]);
+      const transactionAt = headerIndex(headers, [/^transaction$/, /trade type/, /order type/]);
       const averageAt = headerIndex(headers, [/purchase price/, /average price/, /avg.*price/, /cost basis/]);
       const currentAt = headerIndex(headers, [/current price/, /last price/, /^price$/]);
       const valueAt = headerIndex(headers, [/market value/, /total value/, /position value/]);
