@@ -338,8 +338,8 @@ def main():
     output = Path("market-data/universe.json")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(snapshot, separators=(",",":"), allow_nan=False), encoding="utf-8")
-    if len(snapshot["stocks"]) < 250:
-        raise RuntimeError(f'only {len(snapshot["stocks"])} global stocks had complete data')
+    if len(snapshot["stocks"]) < 400:
+        raise RuntimeError(f'only {len(snapshot["stocks"])} global stocks had complete data; refusing to publish a degraded snapshot')
     print(f'Wrote {len(snapshot["stocks"])} global stocks; {len(snapshot["errors"])} incomplete.')
 
 if __name__ == "__main__":
