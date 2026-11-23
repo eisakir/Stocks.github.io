@@ -27,6 +27,7 @@ const LARGE_CAP_UNIVERSE = [
   'CME','ZTS','MCK','CVS','USB','MDLZ','ORLY','APO','WM','EOG'
 ];
 let universeRecommendations = [];
+let universeNewsWatchlist = [];
 let universeScanRunning = false;
 
 const average = values => values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
@@ -835,7 +836,8 @@ function renderUniverseResults(summary = '') {
   const container = $('#universeResults');
   if (!container) return;
   if (!universeRecommendations.length) {
-    container.innerHTML = '<p class="empty-queue">' + (summary || 'No stocks passed every trade gate.') + '</p>';
+    const newsCards = universeNewsWatchlist.length ? '<section class="news-watchlist"><div class="news-watchlist-head"><small>CONTEXT, NOT TRADE RECOMMENDATIONS</small><h3>Trusted-news near-miss watchlist</h3><p>These stocks were closest to the numerical gates. Headlines can reveal developments the ratios have not captured yet, but they cannot create a BUY or bypass the risk model.</p></div>' + universeNewsWatchlist.map(item => '<article class="news-card"><div><b>' + item.symbol + '</b><span>Ensemble ' + item.score.toFixed(0) + '/100 · Valuation ' + item.valuationScore.toFixed(0) + '/100</span></div><p>' + item.gap + '</p>' + (item.news.length ? '<ul>' + item.news.map(story => '<li><a href="' + story.url + '" target="_blank" rel="noopener noreferrer">' + story.title + '</a><small>' + story.publisher + ' · ' + new Date(story.publishedAt).toLocaleDateString() + ' · ' + story.context + '</small></li>').join('') + '</ul>' : '<p class="news-none">No recent allowlisted coverage was available. No inference was made.</p>') + '</article>').join('') + '<p class="news-policy">Allowed sources are established wire services, financial publications, public broadcasters, regulators, exchanges, and official company releases. Headlines are context only and may be incomplete.</p></section>' : '<section class="news-watchlist"><p class="empty-queue">No allowlisted, recent news was available for the closest numerical candidates. No news-based recommendation was created.</p></section>';
+    container.innerHTML = '<p class="universe-summary">' + (summary || 'No stocks passed every trade gate.') + '</p>' + newsCards;
     return;
   }
   container.innerHTML = (summary ? '<p class="universe-summary">' + summary + '</p>' : '') + universeRecommendations.map((ticket, index) =>
@@ -878,6 +880,7 @@ async function runUniverseScan() {
   button.disabled = true;
   button.textContent = 'Loading daily data…';
   universeRecommendations = [];
+  universeNewsWatchlist = [];
   renderUniverseResults('Loading the latest GitHub-hosted market snapshot…');
   const selection = $('#universeSelect').value;
   const requestedCount = selection === 'us100' ? 100 : selection === 'global250' ? 250 : 500;
@@ -902,6 +905,7 @@ async function runUniverseScan() {
     return;
   }
   const candidates = [];
+  const nearMisses = [];
   let completed = 0, live = 0, failed = 0, qualified = 0;
   for (const symbol of symbols) {
     try {
@@ -912,6 +916,17 @@ async function runUniverseScan() {
       const candidateAnalysis = analyze(item.rows, regionalBenchmark, { ...item.fundamentals, source: 'LIVE FUNDAMENTALS' });
       live++;
       const ticket = candidateTicket(symbol, candidateAnalysis, virtualBalance);
+      const gateGaps = [];
+      if (candidateAnalysis.ensembleSignal !== 'BUY') gateGaps.push('ensemble is ' + candidateAnalysis.ensembleSignal.toLowerCase());
+      if (!candidateAnalysis.valuationAvailable || candidateAnalysis.valuationScore < 58) gateGaps.push('valuation evidence is insufficient');
+      if (candidateAnalysis.riskLevel === 'HIGH') gateGaps.push('risk is high');
+      nearMisses.push({
+        symbol,
+        score: candidateAnalysis.ensembleScore,
+        valuationScore: candidateAnalysis.valuationScore,
+        gap: gateGaps.length ? 'Still blocked because ' + gateGaps.join(', ') + '.' : 'A later trade gate remains unconfirmed.',
+        news: Array.isArray(snapshot.trustedNews?.[symbol]) ? snapshot.trustedNews[symbol] : []
+      });
       if (ticket) {
         ticket.region = item.meta?.region || 'Unknown market';
         ticket.exchange = item.meta?.exchange || item.fundamentals?.exchange || 'Unknown exchange';
@@ -998,6 +1013,12 @@ async function runUniverseScan() {
       sectorExposure[sector] = (sectorExposure[sector] || 0) + ticket.positionValue;
       if (!isExistingHolding) sectorCount[sector] = (sectorCount[sector] || 0) + 1;
     }
+  }
+  if (!universeRecommendations.length) {
+    universeNewsWatchlist = nearMisses
+      .filter(item => item.news.length)
+      .sort((a, b) => (b.score + b.valuationScore * .35) - (a.score + a.valuationScore * .35))
+      .slice(0, 8);
   }
   const updated = new Date(snapshot.generatedAt).toLocaleString();
   const missingSymbols = symbols.filter(symbol => !snapshot.stocks?.[symbol]);
