@@ -6,6 +6,8 @@ import time
 from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
+from urllib.parse import quote_plus
+from xml.etree import ElementTree
 
 import pandas as pd
 import requests
@@ -244,6 +246,28 @@ def trusted_news(symbol):
         stories.append({"title":title[:220],"publisher":provider[:80],"url":str(url),"publishedAt":str(published or ""),"context":label})
         if len(stories) >= 3:
             break
+    if stories:
+        return stories
+    try:
+        query = quote_plus(f"{symbol} stock when:14d")
+        response = requests.get(f"https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en", headers=HEADERS, timeout=20)
+        response.raise_for_status()
+        root = ElementTree.fromstring(response.content)
+        for item in root.findall(".//item"):
+            source = item.find("source")
+            provider = (source.text if source is not None else "") or ""
+            if not any(name in provider.lower() for name in TRUSTED_PUBLISHERS):
+                continue
+            title = (item.findtext("title") or "").strip()
+            url = (item.findtext("link") or "").strip()
+            published = (item.findtext("pubDate") or "").strip()
+            if title and url.startswith("http"):
+                label = "Risk flag" if RISK_WORDS.search(title) else "Potential catalyst" if CATALYST_WORDS.search(title) else "Material context"
+                stories.append({"title":title[:220],"publisher":provider[:80],"url":url,"publishedAt":published,"context":label})
+            if len(stories) >= 3:
+                break
+    except Exception as error:
+        print(f"News RSS {symbol}: {error}", flush=True)
     return stories
 
 def news_priority(item):
