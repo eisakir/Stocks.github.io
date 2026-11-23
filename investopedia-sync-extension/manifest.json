@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Stock Strategy Lab — Investopedia Sync",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Copies visible Investopedia Simulator portfolio data into Stock Strategy Lab without storing credentials.",
   "permissions": [
     "storage"
