@@ -1,4 +1,5 @@
 name: Refresh market data
+# Includes allowlisted trusted-news context for near-miss watchlists.
 on:
   workflow_dispatch:
   schedule:
