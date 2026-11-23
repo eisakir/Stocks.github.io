@@ -415,3 +415,19 @@ dialog::backdrop { background: rgb(6 14 23 / .62); backdrop-filter: blur(5px); }
   nav:not(.bottom-nav), .bottom-nav { background: var(--background-color); }
   .strategy-button:hover { background: var(--surface-color); }
 }
+
+
+.news-watchlist { display: grid; gap: .8rem; }
+.news-watchlist-head { padding: 1rem; border-left: 4px solid var(--gold-color); background: var(--surface-muted); border-radius: 12px; }
+.news-watchlist-head small { color: var(--green-color); font-weight: 800; letter-spacing: .08em; }
+.news-watchlist-head h3 { margin: .25rem 0; }
+.news-watchlist-head p, .news-policy { color: var(--muted-text-color); margin: .25rem 0; }
+.news-card { padding: 1rem; border: 1px solid var(--border-color); border-radius: 14px; background: var(--background-color); }
+.news-card > div { display: flex; justify-content: space-between; gap: 1rem; }
+.news-card > div span, .news-card > p { color: var(--muted-text-color); }
+.news-card ul { margin: .65rem 0 0; padding-left: 1.2rem; }
+.news-card li { margin: .55rem 0; }
+.news-card li small { display: block; color: var(--muted-text-color); margin-top: .15rem; }
+.news-card a { font-weight: 700; }
+.news-none { font-style: italic; }
+@media (max-width: 700px) { .news-card > div { display: block; } }
