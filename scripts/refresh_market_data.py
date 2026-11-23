@@ -207,6 +207,56 @@ def fundamentals(symbol, default_currency):
         raise ValueError("insufficient valuation coverage")
     return result
 
+
+TRUSTED_PUBLISHERS = (
+    "reuters","associated press","ap news","bloomberg","financial times","wall street journal",
+    "dow jones","cnbc","marketwatch","bbc","nikkei","the economist","barron's","morningstar",
+    "securities and exchange commission","sec.gov","federal reserve","bank of england",
+    "european central bank","company businesswire","business wire","globe newswire","pr newswire"
+)
+RISK_WORDS = re.compile(r"\\b(investigation|lawsuit|fraud|recall|downgrade|cuts? guidance|misses?|default|bankrupt|sanction|regulator|warning)\\b", re.I)
+CATALYST_WORDS = re.compile(r"\\b(raises? guidance|beats?|approval|contract|acquisition|buyback|dividend|record revenue|upgrade)\\b", re.I)
+
+def trusted_news(symbol):
+    stories = []
+    try:
+        items = yf.Ticker(symbol).get_news(count=10, tab="news") or []
+    except Exception:
+        items = []
+    for raw in items:
+        content = raw.get("content") if isinstance(raw, dict) else None
+        content = content if isinstance(content, dict) else raw
+        provider = content.get("provider") or content.get("publisher") or ""
+        if isinstance(provider, dict):
+            provider = provider.get("displayName") or provider.get("name") or ""
+        provider = str(provider).strip()
+        if not any(name in provider.lower() for name in TRUSTED_PUBLISHERS):
+            continue
+        title = str(content.get("title") or "").strip()
+        canonical = content.get("canonicalUrl") or content.get("clickThroughUrl") or content.get("link") or ""
+        url = canonical.get("url") if isinstance(canonical, dict) else canonical
+        published = content.get("pubDate") or content.get("displayTime") or content.get("providerPublishTime")
+        if isinstance(published, (int, float)):
+            published = datetime.fromtimestamp(published, timezone.utc).isoformat()
+        if not title or not str(url).startswith("http"):
+            continue
+        label = "Risk flag" if RISK_WORDS.search(title) else "Potential catalyst" if CATALYST_WORDS.search(title) else "Material context"
+        stories.append({"title":title[:220],"publisher":provider[:80],"url":str(url),"publishedAt":str(published or ""),"context":label})
+        if len(stories) >= 3:
+            break
+    return stories
+
+def news_priority(item):
+    rows = item.get("rows") or []
+    fundamental = item.get("fundamentals") or {}
+    if len(rows) < 64:
+        return -999
+    momentum = rows[-1]["close"] / rows[-64]["close"] - 1
+    forward_pe = finite(fundamental.get("forwardPE"))
+    peg = finite(fundamental.get("pegRatio"))
+    value = (30 - min(forward_pe or 30, 60)) / 30 + (2 - min(peg or 2, 5)) / 2
+    return momentum * 4 + value
+
 def main():
     universe, discovery_errors = build_universe()
     benchmark_tickers = sorted({item["benchmark"] for item in universe})
@@ -229,7 +279,9 @@ def main():
         "universeMeta":{item["symbol"]:item for item in universe},
         "stocks":{},
         "errors":{},
-        "discoveryErrors":discovery_errors
+        "discoveryErrors":discovery_errors,
+        "trustedNews":{},
+        "newsPolicy":"Allowlisted established publishers and official sources; headlines provide context only and never authorize a trade."
     }
     for index, item in enumerate(universe, 1):
         symbol = item["symbol"]
@@ -252,6 +304,13 @@ def main():
             snapshot["errors"][symbol] = str(error)[:180]
             print(f"[{index}/{len(universe)}] {symbol}: {error}", flush=True)
         time.sleep(.08)
+    ranked_for_news = sorted(snapshot["stocks"].items(), key=lambda pair: news_priority(pair[1]), reverse=True)[:60]
+    for index, (symbol, _) in enumerate(ranked_for_news, 1):
+        stories = trusted_news(symbol)
+        if stories:
+            snapshot["trustedNews"][symbol] = stories
+        print(f"[news {index}/{len(ranked_for_news)}] {symbol}: {len(stories)} trusted stories", flush=True)
+        time.sleep(.12)
     output = Path("market-data/universe.json")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(snapshot, separators=(",",":"), allow_nan=False), encoding="utf-8")
