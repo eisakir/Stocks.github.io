@@ -212,7 +212,7 @@ TRUSTED_PUBLISHERS = (
     "reuters","associated press","ap news","bloomberg","financial times","wall street journal",
     "dow jones","cnbc","marketwatch","bbc","nikkei","the economist","barron's","morningstar",
     "securities and exchange commission","sec.gov","federal reserve","bank of england",
-    "european central bank","company businesswire","business wire","globe newswire","pr newswire"
+    "european central bank","yahoo finance","investor's business daily","the street","company businesswire","business wire","globe newswire","pr newswire"
 )
 RISK_WORDS = re.compile(r"\\b(investigation|lawsuit|fraud|recall|downgrade|cuts? guidance|misses?|default|bankrupt|sanction|regulator|warning)\\b", re.I)
 CATALYST_WORDS = re.compile(r"\\b(raises? guidance|beats?|approval|contract|acquisition|buyback|dividend|record revenue|upgrade)\\b", re.I)
