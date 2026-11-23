@@ -1204,7 +1204,7 @@ if (typeof document !== 'undefined') {
       $('#ticketStatus').textContent = 'Copy is unavailable in this browser. Use the visible ticket details to enter the trade manually.';
     }
   });
-  $('#exportTradesButton').addEventListener('click', exportPaperTrades);
+  $('#exportTradesButton')?.addEventListener('click', exportPaperTrades);
   $('#refreshHoldingsButton').addEventListener('click', refreshHoldings);
   $('#syncInvestopediaButton').addEventListener('click', requestInvestopediaSync);
   $('#runUniverseScan').addEventListener('click', runUniverseScan);
