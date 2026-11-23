@@ -106,13 +106,16 @@
     });
     button.addEventListener('click', async () => {
       const snapshot = scrape();
-      if (!snapshot.holdings.length && !snapshot.pendingOrders.length) {
+      const pageText = clean(document.body.innerText).toLowerCase();
+      const validEmptyPortfolio = /no (stock )?holdings( yet)?/.test(pageText);
+      if (!snapshot.holdings.length && !snapshot.pendingOrders.length && !validEmptyPortfolio) {
         button.textContent = 'Open Portfolio or Pending Trades first';
         setTimeout(() => { button.textContent = 'Capture for Stock Strategy Lab'; }, 3500);
         return;
       }
+      snapshot.validEmptyPortfolio = validEmptyPortfolio;
       await storageSet({ investopediaSnapshot: snapshot });
-      button.textContent = 'Captured ✓ Open Stock Strategy Lab';
+      button.textContent = validEmptyPortfolio ? 'Empty portfolio captured ✓' : 'Captured ✓ Open Stock Strategy Lab';
       setTimeout(() => { button.textContent = 'Capture for Stock Strategy Lab'; }, 3500);
     });
     document.documentElement.appendChild(button);
